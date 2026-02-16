@@ -1,6 +1,16 @@
 ---
 # Example generic inventory for Network Path Visualizer V3
 # The only job of inventory is: IP → device resolution
+#
+# Fields:
+#   management_ip  - hostname or IP used to connect
+#   vendor         - juniper (more vendors planned)
+#   connection     - telnet | ssh | netconf
+#   credentials    - username/password (or vault: reference)
+#   role           - freeform label (route-server, core, edge, pe, etc.)
+#   site           - freeform site/location label
+#   loopbacks      - list of loopback IPs (used for next-hop resolution)
+#   interfaces     - map of interface-name → IP (used for next-hop resolution)
 
 devices:
   att-rs:
@@ -12,8 +22,16 @@ devices:
       password: rviews
     role: route-server
     site: att
-    loopbacks: []
-    interfaces: {}
+
+  tdc-rs:
+    management_ip: route-server.opentransit.net
+    vendor: juniper
+    connection: telnet
+    credentials:
+      username: rviews
+      password: rviews
+    role: route-server
+    site: tdc-opentransit
 
   # Example internal devices (uncomment and fill in for real network)
   # core-rtr-1:
@@ -30,19 +48,3 @@ devices:
   #   interfaces:
   #     et-0/0/0: 10.1.1.1
   #     et-0/0/1: 10.1.2.1
-  #     et-0/0/2: 10.1.3.1
-  #
-  # edge-rtr-1:
-  #   management_ip: 10.0.0.2
-  #   vendor: juniper
-  #   connection: ssh
-  #   credentials:
-  #     username: admin
-  #     password: vault:edge-rtr-1
-  #   role: edge
-  #   site: dc1
-  #   loopbacks:
-  #     - 192.168.255.2
-  #   interfaces:
-  #     ge-0/0/0: 10.1.1.2
-  #     ge-0/0/1: 10.2.1.1

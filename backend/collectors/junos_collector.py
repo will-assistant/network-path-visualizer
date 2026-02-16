@@ -171,7 +171,8 @@ class JunosCollector:
         """Query device for a route and return normalized RouteEntry list."""
         import pexpect
 
-        prompt = r'[^\s]+>'
+        # Prompt must be at start of line to avoid matching <Active Ext> etc.
+        prompt = r'\r\n\S+> '
 
         try:
             child = pexpect.spawn(
