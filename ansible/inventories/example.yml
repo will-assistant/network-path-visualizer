@@ -1,0 +1,142 @@
+# Network Path Visualizer — Ansible Inventory
+#
+# Organize routers by routing domain and role.
+# Each domain is a zone where one protocol suite runs.
+# Firewalls are domain boundaries.
+#
+# Copy this to production.yml and fill in your details.
+
+all:
+  vars:
+    ansible_connection: ansible.netcommon.netconf
+    ansible_network_os: auto
+    # Global NETCONF settings
+    netconf_port: 830
+    
+  children:
+    # ============================================
+    # ROUTING DOMAINS
+    # ============================================
+    
+    backbone:
+      vars:
+        domain_name: backbone
+        domain_type: backbone
+        domain_protocol: "isis+mpls"
+      children:
+        agg_routers:
+          hosts:
+            agg-east-01:
+              ansible_host: 10.0.0.1
+              vendor: juniper
+              ansible_network_os: junipernetworks.junos.junos
+            agg-west-01:
+              ansible_host: 10.0.0.2
+              vendor: cisco_xr
+              ansible_network_os: cisco.iosxr.iosxr
+        
+        route_reflectors:
+          hosts:
+            rr-01:
+              ansible_host: 10.0.0.10
+              vendor: juniper
+              ansible_network_os: junipernetworks.junos.junos
+              device_role: rr
+            rr-02:
+              ansible_host: 10.0.0.11
+              vendor: cisco_xr
+              ansible_network_os: cisco.iosxr.iosxr
+              device_role: rr
+    
+    pe_zone_east:
+      vars:
+        domain_name: pe_zone_east
+        domain_type: pe_zone
+        domain_protocol: "bgp+mpls"
+      hosts:
+        pe-nyc-01:
+          ansible_host: 10.1.0.1
+          vendor: juniper
+          ansible_network_os: junipernetworks.junos.junos
+          device_role: pe
+        pe-iad-01:
+          ansible_host: 10.1.0.2
+          vendor: cisco_xr
+          ansible_network_os: cisco.iosxr.iosxr
+          device_role: pe
+    
+    pe_zone_west:
+      vars:
+        domain_name: pe_zone_west
+        domain_type: pe_zone
+        domain_protocol: "bgp+mpls"
+      hosts:
+        pe-lax-01:
+          ansible_host: 10.2.0.1
+          vendor: juniper
+          ansible_network_os: junipernetworks.junos.junos
+          device_role: pe
+        pe-sea-01:
+          ansible_host: 10.2.0.2
+          vendor: cisco_xr
+          ansible_network_os: cisco.iosxr.iosxr
+          device_role: pe
+    
+    inet_edge:
+      vars:
+        domain_name: inet_edge
+        domain_type: inet_edge
+        domain_protocol: "ebgp"
+      hosts:
+        edge-01:
+          ansible_host: 10.3.0.1
+          vendor: cisco_xr
+          ansible_network_os: cisco.iosxr.iosxr
+          device_role: edge
+    
+    # ============================================
+    # DOMAIN BOUNDARIES (FIREWALLS)
+    # ============================================
+    
+    firewalls:
+      vars:
+        domain_type: boundary
+        ansible_connection: httpapi  # Palo uses API, Fortinet uses API
+      children:
+        palo_alto_firewalls:
+          vars:
+            vendor: palo_alto
+            ansible_network_os: paloaltonetworks.panos.panos
+          hosts:
+            fw-east-01:
+              ansible_host: 10.4.0.1
+              upstream_domain: backbone
+              downstream_domain: pe_zone_east
+            fw-edge-01:
+              ansible_host: 10.4.0.10
+              upstream_domain: backbone
+              downstream_domain: inet_edge
+        
+        fortinet_firewalls:
+          vars:
+            vendor: fortinet
+            ansible_network_os: fortinet.fortios.fortios
+          hosts:
+            fw-west-01:
+              ansible_host: 10.4.0.2
+              upstream_domain: backbone
+              downstream_domain: pe_zone_west
+
+    # ============================================
+    # PUBLIC ROUTE SERVERS (testing only)
+    # ============================================
+    
+    public_route_servers:
+      vars:
+        ansible_connection: local
+        domain_name: public_test
+      hosts:
+        att_rs:
+          ansible_host: route-server.ip.att.net
+          rs_type: telnet
+          vendor: cisco_ios

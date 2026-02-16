@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+data/collected/
+ansible/inventories/production.yml
+venv/
+.venv/
+*.egg-info/
+dist/
+build/

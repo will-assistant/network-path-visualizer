@@ -1,0 +1,152 @@
+---
+# Collect BGP routing tables from all routers
+# Outputs structured JSON per router to data/collected/
+
+- name: Collect BGP data from Juniper routers
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: no
+  
+  vars:
+    output_dir: "{{ playbook_dir }}/../../data/collected"
+    target_prefix: "{{ prefix | default('') }}"
+  
+  tasks:
+    - name: Ensure output directory exists
+      delegate_to: localhost
+      file:
+        path: "{{ output_dir }}"
+        state: directory
+      run_once: true
+
+    # ----- JUNIPER -----
+    - name: "Juniper — Get BGP RIB"
+      when: vendor == "juniper"
+      junipernetworks.junos.junos_rpc:
+        rpc: get-route-information
+        attrs:
+          table: "{{ vrf | default('inet.0') }}"
+          destination: "{{ target_prefix }}"
+          extensive: true
+      register: junos_bgp
+
+    - name: "Juniper — Get MPLS LSPs"
+      when: vendor == "juniper"
+      junipernetworks.junos.junos_rpc:
+        rpc: get-mpls-lsp-information
+        attrs:
+          extensive: true
+      register: junos_lsp
+
+    - name: "Juniper — Get ISIS LSDB"
+      when: vendor == "juniper"
+      junipernetworks.junos.junos_rpc:
+        rpc: get-isis-database-information
+        attrs:
+          extensive: true
+      register: junos_isis
+
+    - name: "Juniper — Save collected data"
+      when: vendor == "juniper"
+      delegate_to: localhost
+      copy:
+        content: |
+          {
+            "hostname": "{{ inventory_hostname }}",
+            "vendor": "juniper",
+            "collected_at": "{{ ansible_date_time.iso8601 | default(lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ')) }}",
+            "bgp_rib": {{ junos_bgp.xml | default('{}') | to_json }},
+            "mpls_lsp": {{ junos_lsp.xml | default('{}') | to_json }},
+            "isis_lsdb": {{ junos_isis.xml | default('{}') | to_json }}
+          }
+        dest: "{{ output_dir }}/{{ inventory_hostname }}.json"
+
+    # ----- CISCO IOS-XR -----
+    - name: "Cisco XR — Get BGP table"
+      when: vendor == "cisco_xr"
+      cisco.iosxr.iosxr_command:
+        commands:
+          - "show bgp {{ vrf | default('') }} {{ target_prefix | default('') }} | json"
+      register: xr_bgp
+
+    - name: "Cisco XR — Get MPLS TE tunnels"
+      when: vendor == "cisco_xr"
+      cisco.iosxr.iosxr_command:
+        commands:
+          - "show mpls traffic-eng tunnels brief | json"
+      register: xr_mpls
+
+    - name: "Cisco XR — Get ISIS topology"
+      when: vendor == "cisco_xr"
+      cisco.iosxr.iosxr_command:
+        commands:
+          - "show isis topology | json"
+      register: xr_isis
+
+    - name: "Cisco XR — Save collected data"
+      when: vendor == "cisco_xr"
+      delegate_to: localhost
+      copy:
+        content: |
+          {
+            "hostname": "{{ inventory_hostname }}",
+            "vendor": "cisco_xr",
+            "collected_at": "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}",
+            "bgp_rib": {{ xr_bgp.stdout[0] | default('{}') | to_json }},
+            "mpls_te": {{ xr_mpls.stdout[0] | default('{}') | to_json }},
+            "isis_topo": {{ xr_isis.stdout[0] | default('{}') | to_json }}
+          }
+        dest: "{{ output_dir }}/{{ inventory_hostname }}.json"
+
+
+- name: Collect static routes from firewalls
+  hosts: firewalls
+  gather_facts: no
+  
+  vars:
+    output_dir: "{{ playbook_dir }}/../../data/collected"
+  
+  tasks:
+    # ----- PALO ALTO -----
+    - name: "Palo Alto — Get static routes"
+      when: vendor == "palo_alto"
+      paloaltonetworks.panos.panos_command:
+        cmd: "show routing route type static"
+      register: palo_routes
+
+    - name: "Palo Alto — Save"
+      when: vendor == "palo_alto"
+      delegate_to: localhost
+      copy:
+        content: |
+          {
+            "hostname": "{{ inventory_hostname }}",
+            "vendor": "palo_alto",
+            "role": "firewall",
+            "upstream_domain": "{{ upstream_domain }}",
+            "downstream_domain": "{{ downstream_domain }}",
+            "static_routes": {{ palo_routes.stdout | default('[]') | to_json }}
+          }
+        dest: "{{ output_dir }}/{{ inventory_hostname }}.json"
+
+    # ----- FORTINET -----
+    - name: "Fortinet — Get static routes"
+      when: vendor == "fortinet"
+      fortinet.fortios.fortios_router_static:
+        state: "present"
+      register: forti_routes
+      check_mode: yes  # Read-only
+
+    - name: "Fortinet — Save"
+      when: vendor == "fortinet"
+      delegate_to: localhost
+      copy:
+        content: |
+          {
+            "hostname": "{{ inventory_hostname }}",
+            "vendor": "fortinet",
+            "role": "firewall",
+            "upstream_domain": "{{ upstream_domain }}",
+            "downstream_domain": "{{ downstream_domain }}",
+            "static_routes": {{ forti_routes.meta | default('[]') | to_json }}
+          }
+        dest: "{{ output_dir }}/{{ inventory_hostname }}.json"
