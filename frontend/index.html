@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Network Path Visualizer</title>
-    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <title>Network Path Visualizer — V3</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -18,405 +17,434 @@
             padding: 16px 24px;
             display: flex;
             align-items: center;
-            gap: 24px;
+            gap: 16px;
         }
-        .header h1 { font-size: 18px; font-weight: 600; color: #fff; }
-        .header h1 span { color: #4CAF50; }
-        .search-container {
-            flex: 1;
-            max-width: 600px;
+        .header h1 {
+            font-size: 18px;
+            color: #4fc3f7;
+            white-space: nowrap;
+        }
+        .header .version {
+            font-size: 12px;
+            color: #666;
+            background: #1a1a25;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        .controls {
+            padding: 20px 24px;
             display: flex;
-            gap: 8px;
+            gap: 12px;
+            align-items: end;
+            flex-wrap: wrap;
+            background: #0d0d14;
+            border-bottom: 1px solid #1a1a25;
         }
-        .search-input {
-            flex: 1;
-            padding: 10px 16px;
-            background: #1a1a24;
-            border: 1px solid #333;
-            border-radius: 8px;
-            color: #fff;
-            font-size: 14px;
-            font-family: 'SF Mono', 'Fira Code', monospace;
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
-        .search-input:focus { outline: none; border-color: #4CAF50; }
-        .search-input::placeholder { color: #555; }
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .btn-primary { background: #4CAF50; color: #fff; }
-        .btn-primary:hover { background: #45a049; }
-        .btn-primary:disabled { background: #333; color: #666; cursor: not-allowed; }
-        .main {
-            display: grid;
-            grid-template-columns: 1fr 420px;
-            height: calc(100vh - 65px);
-        }
-        #topology { width: 100%; height: 100%; background: #0a0a0f; }
-        .sidebar {
-            background: #111118;
-            border-left: 1px solid #222;
-            overflow-y: auto;
-            padding: 16px;
-        }
-        .sidebar h2 {
-            font-size: 14px;
-            font-weight: 600;
+        .control-group label {
+            font-size: 11px;
             color: #888;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 12px;
         }
-        .result-card {
-            background: #1a1a24;
-            border: 1px solid #222;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 8px;
+        input, select {
+            background: #1a1a25;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+        }
+        input:focus, select:focus {
+            border-color: #4fc3f7;
+        }
+        input { width: 280px; }
+        select { min-width: 160px; }
+        button {
+            background: #4fc3f7;
+            color: #000;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
-            transition: border-color 0.2s;
+            transition: background 0.2s;
         }
-        .result-card:hover { border-color: #444; }
-        .result-card.active-path { border-left: 3px solid #4CAF50; }
-        .result-card.inactive-path { border-left: 3px solid #555; }
-        .result-card.selected { border-color: #4CAF50; background: #1a2a1a; }
-        .result-card h3 { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 6px; }
-        .result-card p { font-size: 12px; color: #888; line-height: 1.5; }
-        .result-card code {
-            font-family: 'SF Mono', 'Fira Code', monospace;
-            background: #0a0a0f;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 11px;
-            color: #4CAF50;
+        button:hover { background: #81d4fa; }
+        button:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+        .main {
+            display: flex;
+            height: calc(100vh - 130px);
         }
-        .path-detail { margin-top: 8px; }
-        .path-detail .field {
+        .path-view {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+        .detail-panel {
+            width: 380px;
+            background: #111118;
+            border-left: 1px solid #222;
+            padding: 20px;
+            overflow-y: auto;
+            display: none;
+        }
+        .detail-panel.active { display: block; }
+        .detail-panel h3 {
+            color: #4fc3f7;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        .detail-row {
             display: flex;
             justify-content: space-between;
-            padding: 3px 0;
-            font-size: 11px;
-            border-bottom: 1px solid #1a1a24;
+            padding: 6px 0;
+            border-bottom: 1px solid #1a1a25;
+            font-size: 13px;
         }
-        .path-detail .field .label { color: #666; }
-        .path-detail .field .value { color: #ccc; font-family: monospace; font-size: 11px; }
-        .city-tag {
+        .detail-row .key { color: #888; }
+        .detail-row .val { color: #e0e0e0; font-family: 'SF Mono', monospace; font-size: 12px; }
+
+        /* Path visualization */
+        .path-container { margin-bottom: 24px; }
+        .path-header {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .path-status {
             display: inline-block;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 10px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .path-status.origin { background: #4caf50; }
+        .path-status.not_in_inventory { background: #ff9800; }
+        .path-status.blackhole { background: #f44336; }
+        .path-status.loop { background: #f44336; }
+        .path-status.unreachable { background: #f44336; }
+        .path-status.max_hops { background: #ff9800; }
+
+        .hop-chain {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0;
+        }
+        .hop-node {
+            background: #1a1a25;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 100px;
+            text-align: center;
+        }
+        .hop-node:hover {
+            border-color: #4fc3f7;
+            background: #1e1e30;
+        }
+        .hop-node.selected {
+            border-color: #4fc3f7;
+            box-shadow: 0 0 8px rgba(79, 195, 247, 0.3);
+        }
+        .hop-node .device-name {
             font-weight: 600;
-            background: #1a2a3a;
+            font-size: 13px;
+            color: #fff;
+        }
+        .hop-node .hop-role {
+            font-size: 11px;
+            color: #888;
+            margin-top: 2px;
+        }
+        .hop-node .hop-proto {
+            font-size: 10px;
             color: #4fc3f7;
             margin-top: 4px;
         }
-        .active-tag {
+        .hop-arrow {
+            color: #444;
+            font-size: 20px;
+            padding: 0 6px;
+            user-select: none;
+        }
+        .hop-node .plugin-badge {
             display: inline-block;
-            padding: 2px 6px;
+            font-size: 9px;
+            padding: 1px 5px;
             border-radius: 3px;
-            font-size: 10px;
-            font-weight: 600;
+            margin-top: 4px;
+            background: #2a1a35;
+            color: #ce93d8;
+            border: 1px solid #4a2a5a;
         }
-        .active-tag.best { background: #1b3a1b; color: #4CAF50; }
-        .active-tag.notbest { background: #2a2a1a; color: #888; }
-        .summary-bar {
-            background: #1a1a24;
-            border: 1px solid #222;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-around;
+        .hop-note {
+            font-size: 11px;
+            color: #ff9800;
+            margin-top: 2px;
+        }
+
+        .empty-state {
             text-align: center;
+            padding: 80px 20px;
+            color: #444;
         }
-        .summary-bar .stat .num { font-size: 24px; font-weight: 700; color: #4CAF50; }
-        .summary-bar .stat .lbl { font-size: 10px; color: #666; text-transform: uppercase; }
-        .legend {
-            display: flex;
-            gap: 16px;
-            padding: 12px;
-            margin-top: 12px;
-            flex-wrap: wrap;
+        .empty-state h2 { font-size: 20px; margin-bottom: 8px; color: #555; }
+        .empty-state p { font-size: 14px; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #4fc3f7;
         }
-        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #666; }
-        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
-        .empty-state { text-align: center; padding: 60px 20px; color: #444; }
-        .empty-state h3 { font-size: 16px; margin-bottom: 8px; color: #555; }
-        .empty-state p { font-size: 13px; }
-        .loading { text-align: center; padding: 40px; }
-        .loading .spinner {
-            width: 32px; height: 32px; border: 3px solid #333;
-            border-top-color: #4CAF50; border-radius: 50%;
-            animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+        .loading::after {
+            content: '';
+            animation: dots 1.5s infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .comm-list { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
-        .comm-tag {
-            font-size: 10px; padding: 1px 5px; border-radius: 3px;
-            background: #222; color: #aaa; font-family: monospace;
+        @keyframes dots {
+            0% { content: '.'; }
+            33% { content: '..'; }
+            66% { content: '...'; }
+        }
+        .error-msg {
+            background: #2a1515;
+            border: 1px solid #5a2020;
+            color: #ef9a9a;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin: 20px 0;
+            font-size: 13px;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1><span>⬡</span> Network Path Visualizer</h1>
-        <div class="search-container">
-            <input type="text" class="search-input" id="prefixInput"
-                   placeholder="Enter prefix (e.g., 8.8.8.0/24, 1.1.1.0/24)" value="8.8.8.0/24">
-            <button class="btn btn-primary" id="traceBtn" onclick="trace()">Trace</button>
+        <h1>🔍 Network Path Visualizer</h1>
+        <span class="version">V3 — Generic Next-Hop Follower</span>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>Prefix</label>
+            <input type="text" id="prefix" placeholder="e.g. 8.8.8.0/24" value="8.8.8.0/24">
         </div>
+        <div class="control-group">
+            <label>Starting Device</label>
+            <select id="start-device">
+                <option value="">Loading...</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>VRF (optional)</label>
+            <input type="text" id="vrf" placeholder="default" style="width: 140px;">
+        </div>
+        <button id="trace-btn" onclick="runTrace()">Trace</button>
     </div>
 
     <div class="main">
-        <div id="topology"></div>
-        <div class="sidebar">
-            <div id="results">
-                <div class="empty-state">
-                    <h3>Enter a prefix to trace</h3>
-                    <p>Query the AT&T route server for all BGP paths to a prefix.
-                    See active/inactive paths, AS-paths, communities, and next-hop cities.</p>
-                    <br>
-                    <p style="color: #4CAF50; font-family: monospace;">
-                        8.8.8.0/24 — Google DNS (16 paths)<br>
-                        1.1.1.0/24 — Cloudflare<br>
-                        13.107.42.0/24 — Microsoft
-                    </p>
-                </div>
+        <div class="path-view" id="path-view">
+            <div class="empty-state">
+                <h2>Enter a prefix and start tracing</h2>
+                <p>Follow the routing table hop by hop</p>
             </div>
-            <div class="legend">
-                <div class="legend-item"><div class="legend-dot" style="background:#81C784"></div> DCCE</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#4CAF50"></div> DCPE</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#66BB6A"></div> SPE</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#F44336"></div> FW</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#2196F3"></div> AGG</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#FF9800"></div> IPE</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#9C27B0"></div> RR</div>
-            </div>
+        </div>
+        <div class="detail-panel" id="detail-panel">
+            <h3>Hop Details</h3>
+            <div id="detail-content"></div>
         </div>
     </div>
 
     <script>
-        const container = document.getElementById('topology');
-        let network = null;
-        let nodesDataSet = null;
-        let edgesDataSet = null;
+        let lastResult = null;
 
-        function initTopology() {
-            const options = {
-                nodes: {
-                    font: { color: '#ccc', size: 12, face: 'monospace' },
-                    borderWidth: 2,
-                    shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 10 }
-                },
-                edges: {
-                    smooth: { type: 'continuous' },
-                    font: { color: '#555', size: 10 },
-                },
-                physics: {
-                    enabled: false  // Using fixed hierarchical positions
-                },
-                groups: {
-                    backbone:  { color: { background: '#1a237e', border: '#2196F3' } },
-                    pe_zone:   { color: { background: '#1b5e20', border: '#4CAF50' } },
-                    inet_edge: { color: { background: '#e65100', border: '#FF9800' } },
-                    firewall:  { color: { background: '#b71c1c', border: '#F44336' } }
-                },
-                interaction: { hover: true, tooltipDelay: 200 }
-            };
-
-            nodesDataSet = new vis.DataSet([]);
-            edgesDataSet = new vis.DataSet([]);
-            network = new vis.Network(container, { nodes: nodesDataSet, edges: edgesDataSet }, options);
-
-            fetch('/api/topology')
-                .then(r => r.json())
-                .then(data => {
-                    nodesDataSet.add(data.nodes);
-                    edgesDataSet.add(data.edges);
-                })
-                .catch(() => loadDemoTopology());
-        }
-
-        function loadDemoTopology() {
-            // 7-tier MPLS demo: DCCE → DCPE → SPE → T2-FW → AGG → T1-FW → IPE
-            const tier = (t, site) => ({ x: site === 'east' ? -200 : 200, y: [0,400,300,200,100,0,-100,-200][t] });
-            const e = (site) => site === 'east' ? -200 : 200;
-            const nodes = [
-                { id: 'dcce-east-01', label: 'DCCE-EAST-01', color: '#81C784', shape: 'dot', ...tier(1,'east'), fixed: true },
-                { id: 'dcce-west-01', label: 'DCCE-WEST-01', color: '#81C784', shape: 'dot', ...tier(1,'west'), fixed: true },
-                { id: 'dcpe-east-01', label: 'DCPE-EAST-01', color: '#4CAF50', shape: 'dot', ...tier(2,'east'), fixed: true },
-                { id: 'dcpe-west-01', label: 'DCPE-WEST-01', color: '#4CAF50', shape: 'dot', ...tier(2,'west'), fixed: true },
-                { id: 'spe-east-01',  label: 'SPE-EAST-01',  color: '#66BB6A', shape: 'hexagon', ...tier(3,'east'), fixed: true },
-                { id: 'spe-west-01',  label: 'SPE-WEST-01',  color: '#66BB6A', shape: 'hexagon', ...tier(3,'west'), fixed: true },
-                { id: 't2fw-east-01', label: 'T2FW-EAST-01', color: '#EF5350', shape: 'triangle', ...tier(4,'east'), fixed: true },
-                { id: 't2fw-west-01', label: 'T2FW-WEST-01', color: '#EF5350', shape: 'triangle', ...tier(4,'west'), fixed: true },
-                { id: 'agg-east-01',  label: 'AGG-EAST-01',  color: '#2196F3', shape: 'diamond', ...tier(5,'east'), fixed: true },
-                { id: 'agg-west-01',  label: 'AGG-WEST-01',  color: '#2196F3', shape: 'diamond', ...tier(5,'west'), fixed: true },
-                { id: 'rr-core-01',   label: 'RR-CORE\n(core)', color: '#9C27B0', shape: 'star', x: 400, y: 20, fixed: true },
-                { id: 'rr-agg-01',    label: 'RR-AGG\n(agg)',   color: '#9C27B0', shape: 'star', x: 400, y: 0, fixed: true },
-                { id: 'rr-inet-01',   label: 'RR-INET\n(inet)', color: '#9C27B0', shape: 'star', x: 400, y: -20, fixed: true },
-                { id: 't1fw-east-01', label: 'T1FW-EAST-01', color: '#F44336', shape: 'triangle', ...tier(6,'east'), fixed: true },
-                { id: 't1fw-west-01', label: 'T1FW-WEST-01', color: '#F44336', shape: 'triangle', ...tier(6,'west'), fixed: true },
-                { id: 'ipe-east-01',  label: 'IPE-EAST-01',  color: '#FF9800', shape: 'square', ...tier(7,'east'), fixed: true },
-                { id: 'ipe-west-01',  label: 'IPE-WEST-01',  color: '#FF9800', shape: 'square', ...tier(7,'west'), fixed: true },
-            ];
-            const c = {color:'#333'};
-            const edges = [
-                { from: 'dcce-east-01', to: 'dcpe-east-01', color: c },
-                { from: 'dcce-west-01', to: 'dcpe-west-01', color: c },
-                { from: 'dcpe-east-01', to: 'spe-east-01', color: c },
-                { from: 'dcpe-west-01', to: 'spe-west-01', color: c },
-                { from: 'spe-east-01',  to: 't2fw-east-01', color: c },
-                { from: 'spe-west-01',  to: 't2fw-west-01', color: c },
-                { from: 't2fw-east-01', to: 'agg-east-01', color: c, width: 3 },
-                { from: 't2fw-west-01', to: 'agg-west-01', color: c, width: 3 },
-                { from: 'agg-east-01',  to: 'agg-west-01', color: {color:'#444'}, width: 4 },
-                { from: 'agg-east-01',  to: 'rr-core-01', color: c, dashes: true },
-                { from: 'agg-east-01',  to: 'rr-agg-01',  color: c, dashes: true },
-                { from: 'agg-east-01',  to: 'rr-inet-01', color: c, dashes: true },
-                { from: 'agg-east-01',  to: 't1fw-east-01', color: c, width: 3 },
-                { from: 'agg-west-01',  to: 't1fw-west-01', color: c, width: 3 },
-                { from: 't1fw-east-01', to: 'ipe-east-01', color: c },
-                { from: 't1fw-west-01', to: 'ipe-west-01', color: c },
-            ];
-            nodesDataSet.add(nodes);
-            edgesDataSet.add(edges);
-        }
-
-        function highlightEdgePath(nodeIds) {
-            // Reset all edges to default
-            edgesDataSet.forEach(edge => {
-                edgesDataSet.update({ id: edge.id, color: {color: '#333', highlight: '#4CAF50'}, width: edge._origWidth || edge.width || 1 });
-            });
-            // Highlight edges on the path
-            edgesDataSet.forEach(edge => {
-                const fi = nodeIds.indexOf(edge.from);
-                const ti = nodeIds.indexOf(edge.to);
-                const fi2 = nodeIds.indexOf(edge.to);
-                const ti2 = nodeIds.indexOf(edge.from);
-                if ((fi !== -1 && ti !== -1 && Math.abs(fi - ti) === 1) ||
-                    (fi2 !== -1 && ti2 !== -1 && Math.abs(fi2 - ti2) === 1)) {
-                    edgesDataSet.update({ id: edge.id, color: {color: '#4CAF50'}, width: 5 });
+        // Load devices into dropdown
+        async function loadDevices() {
+            try {
+                const resp = await fetch('/api/devices');
+                const data = await resp.json();
+                const sel = document.getElementById('start-device');
+                sel.innerHTML = '';
+                for (const dev of data.devices) {
+                    const opt = document.createElement('option');
+                    opt.value = dev.hostname;
+                    opt.textContent = `${dev.hostname}${dev.role ? ' (' + dev.role + ')' : ''}`;
+                    sel.appendChild(opt);
                 }
-            });
-            network.selectNodes(nodeIds);
+            } catch (e) {
+                console.error('Failed to load devices:', e);
+            }
         }
 
-        async function trace() {
-            const prefix = document.getElementById('prefixInput').value.trim();
-            if (!prefix) return;
+        async function runTrace() {
+            const prefix = document.getElementById('prefix').value.trim();
+            const startDevice = document.getElementById('start-device').value;
+            const vrf = document.getElementById('vrf').value.trim() || null;
 
-            const resultsDiv = document.getElementById('results');
-            const btn = document.getElementById('traceBtn');
+            if (!prefix || !startDevice) return;
+
+            const btn = document.getElementById('trace-btn');
+            const view = document.getElementById('path-view');
             btn.disabled = true;
-            btn.textContent = 'Querying...';
-
-            resultsDiv.innerHTML = `
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <p>Querying AT&T route server for <code style="color:#4CAF50">${prefix}</code>...</p>
-                    <p style="color:#555;font-size:11px;margin-top:8px">This may take 30-60 seconds (16M+ routes)</p>
-                </div>`;
+            view.innerHTML = '<div class="loading">Tracing route</div>';
+            document.getElementById('detail-panel').classList.remove('active');
 
             try {
                 const resp = await fetch('/api/trace', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ source: prefix })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ prefix, start_device: startDevice, vrf }),
                 });
 
                 if (!resp.ok) {
                     const err = await resp.json();
-                    throw new Error(err.detail || 'Trace failed');
+                    view.innerHTML = `<div class="error-msg">Error: ${err.detail || resp.statusText}</div>`;
+                    return;
                 }
 
-                const data = await resp.json();
-                renderBGPResults(data, prefix);
-
-                // Highlight 7-tier path: IPE → T1-FW → AGG → T2-FW → SPE → DCPE → DCCE
-                highlightEdgePath(['ipe-east-01', 't1fw-east-01', 'agg-east-01', 't2fw-east-01', 'spe-east-01', 'dcpe-east-01', 'dcce-east-01']);
-
+                lastResult = await resp.json();
+                renderPaths(lastResult);
             } catch (e) {
-                resultsDiv.innerHTML = `
-                    <div class="result-card" style="border-left: 3px solid #F44336;">
-                        <h3>Error</h3>
-                        <p>${e.message}</p>
-                        <p style="color:#555;font-size:11px;margin-top:4px">Make sure the backend is running: <code>uvicorn main:app</code></p>
-                    </div>`;
+                view.innerHTML = `<div class="error-msg">Request failed: ${e.message}</div>`;
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Trace';
             }
         }
 
-        function renderBGPResults(data, prefix) {
-            const resultsDiv = document.getElementById('results');
-            let html = '';
+        function renderPaths(result) {
+            const view = document.getElementById('path-view');
 
-            // Summary bar
-            html += `
-                <div class="summary-bar">
-                    <div class="stat"><div class="num">${data.path_count || 0}</div><div class="lbl">Paths</div></div>
-                    <div class="stat"><div class="num">${data.active_count || 0}</div><div class="lbl">Active</div></div>
-                    <div class="stat"><div class="num">${(data.bgp_paths || []).length - (data.active_count || 0)}</div><div class="lbl">Backup</div></div>
+            if (!result.paths || result.paths.length === 0) {
+                view.innerHTML = '<div class="empty-state"><h2>No paths found</h2></div>';
+                return;
+            }
+
+            let html = `<div style="margin-bottom:16px;color:#888;font-size:13px;">
+                Prefix: <strong style="color:#fff">${result.prefix}</strong> from 
+                <strong style="color:#fff">${result.start}</strong> — 
+                ${result.paths.length} path${result.paths.length > 1 ? 's' : ''} found
+            </div>`;
+
+            result.paths.forEach((path, pi) => {
+                const statusClass = path.end_reason || 'unknown';
+                const reasonLabel = {
+                    origin: '✓ Origin found',
+                    blackhole: '✗ Blackhole',
+                    not_in_inventory: '⚠ Left known network',
+                    loop: '✗ Loop detected',
+                    unreachable: '✗ Device unreachable',
+                    max_hops: '⚠ Max hops reached',
+                }[path.end_reason] || path.end_reason;
+
+                html += `<div class="path-container">`;
+                html += `<div class="path-header">
+                    <span class="path-status ${statusClass}"></span>
+                    Path ${pi + 1}: ${reasonLabel}
+                    <span style="color:#555">— ${path.hops.length} hop${path.hops.length !== 1 ? 's' : ''}</span>
                 </div>`;
+                html += `<div class="hop-chain">`;
 
-            html += `<h2>BGP Paths for ${prefix}</h2>`;
+                path.hops.forEach((hop, hi) => {
+                    if (hi > 0) {
+                        html += `<span class="hop-arrow">→</span>`;
+                    }
 
-            const paths = data.bgp_paths || [];
-            paths.forEach((p, i) => {
-                const cardClass = p.active ? 'active-path' : 'inactive-path';
-                const tagClass = p.active ? 'best' : 'notbest';
-                const tagText = p.active ? '★ BEST' : 'backup';
-                const city = p.city || 'Unknown';
+                    // Plugin badges
+                    let badges = '';
+                    if (hop.plugin_labels) {
+                        for (const [plugin, labels] of Object.entries(hop.plugin_labels)) {
+                            for (const [k, v] of Object.entries(labels)) {
+                                badges += `<span class="plugin-badge">${k}: ${v}</span> `;
+                            }
+                        }
+                    }
 
-                html += `
-                    <div class="result-card ${cardClass}" onclick="toggleDetail(this)">
-                        <div style="display:flex;justify-content:space-between;align-items:center">
-                            <h3>#${i + 1} — ${p.next_hop}</h3>
-                            <span class="active-tag ${tagClass}">${tagText}</span>
-                        </div>
-                        <span class="city-tag">📍 ${city}</span>
-                        <div class="path-detail" style="display:none">
-                            <div class="field"><span class="label">AS Path</span><span class="value">${p.as_path || 'n/a'}</span></div>
-                            <div class="field"><span class="label">Origin</span><span class="value">${p.origin || '?'}</span></div>
-                            <div class="field"><span class="label">Local Pref</span><span class="value">${p.local_pref ?? 'n/a'}</span></div>
-                            <div class="field"><span class="label">MED</span><span class="value">${p.med ?? 'n/a'}</span></div>
-                            <div class="field"><span class="label">Peer AS</span><span class="value">${p.peer_as || 'n/a'}</span></div>
-                            <div class="field"><span class="label">Router ID</span><span class="value">${p.router_id || 'n/a'}</span></div>
-                            <div class="field"><span class="label">Age</span><span class="value">${p.age || 'n/a'}</span></div>
-                            ${p.inactive_reason ? `<div class="field"><span class="label">Inactive</span><span class="value" style="color:#FF9800">${p.inactive_reason}</span></div>` : ''}
-                            <div style="margin-top:6px">
-                                <span class="label" style="color:#666;font-size:11px">Communities:</span>
-                                <div class="comm-list">
-                                    ${(p.communities || []).map(c => `<span class="comm-tag">${c}</span>`).join('')}
-                                </div>
-                            </div>
-                        </div>
+                    html += `<div class="hop-node" onclick="showDetail(${pi}, ${hi})">
+                        <div class="device-name">${hop.device}</div>
+                        ${hop.role ? `<div class="hop-role">${hop.role}</div>` : ''}
+                        ${hop.protocol ? `<div class="hop-proto">${hop.protocol.toUpperCase()}</div>` : ''}
+                        ${badges}
+                        ${hop.note ? `<div class="hop-note">${hop.note}</div>` : ''}
                     </div>`;
+                });
+
+                html += `</div></div>`;
             });
 
-            resultsDiv.innerHTML = html;
+            view.innerHTML = html;
         }
 
-        function toggleDetail(card) {
-            const detail = card.querySelector('.path-detail');
-            if (detail) {
-                detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
-                card.classList.toggle('selected');
+        function showDetail(pathIdx, hopIdx) {
+            if (!lastResult) return;
+
+            const hop = lastResult.paths[pathIdx].hops[hopIdx];
+            const panel = document.getElementById('detail-panel');
+            const content = document.getElementById('detail-content');
+
+            // Clear selection
+            document.querySelectorAll('.hop-node').forEach(n => n.classList.remove('selected'));
+            // Select this one
+            const chains = document.querySelectorAll('.hop-chain');
+            if (chains[pathIdx]) {
+                const nodes = chains[pathIdx].querySelectorAll('.hop-node');
+                if (nodes[hopIdx]) nodes[hopIdx].classList.add('selected');
             }
+
+            let html = '';
+            const rows = [
+                ['Device', hop.device],
+                ['Role', hop.role],
+                ['Protocol', hop.protocol],
+                ['Next Hop', hop.next_hop],
+                ['Interface', hop.interface],
+                ['Local Pref', hop.lp],
+                ['Metric', hop.metric],
+                ['VRF', hop.vrf],
+                ['AS Path', hop.as_path ? hop.as_path.join(' ') : ''],
+                ['Communities', hop.communities ? hop.communities.join(', ') : ''],
+            ];
+
+            for (const [key, val] of rows) {
+                if (val !== null && val !== undefined && val !== '') {
+                    html += `<div class="detail-row"><span class="key">${key}</span><span class="val">${val}</span></div>`;
+                }
+            }
+
+            if (hop.plugin_labels && Object.keys(hop.plugin_labels).length > 0) {
+                html += `<h3 style="margin-top:16px">Plugin Labels</h3>`;
+                for (const [plugin, labels] of Object.entries(hop.plugin_labels)) {
+                    for (const [k, v] of Object.entries(labels)) {
+                        html += `<div class="detail-row"><span class="key">${plugin}: ${k}</span><span class="val">${v}</span></div>`;
+                    }
+                }
+            }
+
+            if (hop.note) {
+                html += `<div style="margin-top:12px;padding:8px;background:#2a2a15;border-radius:4px;font-size:12px;color:#ff9800">${hop.note}</div>`;
+            }
+
+            content.innerHTML = html;
+            panel.classList.add('active');
         }
 
-        document.getElementById('prefixInput').addEventListener('keypress', e => {
-            if (e.key === 'Enter') trace();
+        // Handle Enter key
+        document.getElementById('prefix').addEventListener('keydown', e => {
+            if (e.key === 'Enter') runTrace();
         });
 
-        initTopology();
+        // Init
+        loadDevices();
     </script>
 </body>
 </html>

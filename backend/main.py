@@ -1,53 +1,97 @@
 """
-Network Path Visualizer — Backend API
+Network Path Visualizer V3 — Generic Next-Hop Follower API.
 
-Serves the topology, handles prefix traces via AT&T route server,
-returns structured BGP path data for visualization.
+No hardcoded architecture. Just follows the routing table.
 """
 
 import logging
 from pathlib import Path
+from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import Optional
 
-from models import PathQuery, PathResult, PrefixOrigin
-from collectors.bgp import BGPCollector, JunosRouteParser, resolve_att_city
-from graph_engine import GraphEngine
-from path_walker import PathWalker
+from inventory import Inventory
+from path_walker import PathWalker, TraceResult
+from collectors import RouteEntry
+from collectors.junos_collector import JunosCollector
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Network Path Visualizer",
-    description="Multi-domain network path analyzer",
-    version="0.2.0",
+    description="Generic next-hop follower — trace routes across any network",
+    version="3.0.0",
 )
 
 # Paths
 backend_dir = Path(__file__).parent
 project_dir = backend_dir.parent
 frontend_path = project_dir / "frontend"
-inventory_path = project_dir / "data" / "inventory.yaml"
+inventory_path = project_dir / "inventories" / "example-generic.yml"
 
-# Initialize topology
-graph = GraphEngine()
+# Load inventory
+inv: Optional[Inventory] = None
 try:
-    graph.load_inventory(str(inventory_path))
-    logger.info(f"Loaded inventory: {len(graph.routers)} routers, {len(graph.domains)} domains")
+    inv = Inventory.from_yaml(str(inventory_path))
+    logger.info(f"Loaded inventory: {len(inv.devices)} devices")
 except Exception as e:
     logger.warning(f"Could not load inventory: {e}")
+    inv = Inventory()
 
-walker = PathWalker(graph)
-collector = BGPCollector()
+# Collector cache (lazy-init per device)
+_collectors: dict[str, JunosCollector] = {}
+
+
+def _get_collector(device_name: str) -> JunosCollector:
+    """Get or create a collector for a device."""
+    if device_name not in _collectors:
+        dev = inv.get_device(device_name)
+        if not dev:
+            raise ValueError(f"Device {device_name} not in inventory")
+        _collectors[device_name] = JunosCollector(
+            host=dev.management_ip,
+            username=dev.credentials.get("username", ""),
+            password=dev.credentials.get("password", ""),
+            connection=dev.connection,
+        )
+    return _collectors[device_name]
+
+
+async def collector_fn(device_name: str, prefix: str, vrf: str) -> list[RouteEntry]:
+    """Universal collector function — dispatches to vendor-specific collector."""
+    collector = _get_collector(device_name)
+    return await collector.get_route(prefix, vrf)
+
+
+# Load plugins
+plugins = []
+try:
+    from plugins.fis_community_decoder import FISCommunityDecoder
+    plugins.append(FISCommunityDecoder())
+    logger.info("Loaded FIS community decoder plugin")
+except ImportError:
+    pass
+
+# Walker
+walker = PathWalker(
+    inventory=inv,
+    collector_fn=collector_fn,
+    plugins=plugins,
+)
 
 # Serve frontend
 if frontend_path.exists():
     app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
+
+
+class TraceQuery(BaseModel):
+    prefix: str
+    start_device: str
+    vrf: Optional[str] = None
 
 
 @app.get("/")
@@ -55,91 +99,81 @@ async def root():
     return FileResponse(str(frontend_path / "index.html"))
 
 
-@app.get("/api/topology")
-async def get_topology():
-    """Return the full network topology for vis.js rendering."""
-    return graph.to_vis_json()
-
-
 @app.post("/api/trace")
-async def trace_path(query: PathQuery):
-    """
-    Trace a prefix. Queries AT&T route server for real BGP paths.
-    Returns structured path data with city resolution.
-    """
-    prefix = query.source.strip()
+async def trace_path(query: TraceQuery):
+    """Trace a prefix from a starting device, following next-hops."""
+    prefix = query.prefix.strip()
+    start = query.start_device.strip()
+
     if not prefix:
         raise HTTPException(400, "No prefix provided")
+    if not start:
+        raise HTTPException(400, "No start_device provided")
+    if start not in inv.devices:
+        raise HTTPException(404, f"Device '{start}' not in inventory")
 
     try:
-        paths = await collector.lookup_prefix(prefix)
+        result = await walker.trace(prefix, start, query.vrf or "")
     except Exception as e:
-        logger.error(f"BGP lookup failed: {e}")
-        raise HTTPException(502, f"Route server query failed: {str(e)}")
+        logger.error(f"Trace failed: {e}")
+        raise HTTPException(502, f"Trace failed: {str(e)}")
 
-    # Convert BGPPath objects to PrefixOrigin models
-    origins = []
-    for p in paths:
-        city = resolve_att_city(p.communities)
-        origins.append(PrefixOrigin(
-            prefix=p.prefix,
-            originating_router=p.next_hop,
-            origin_type=f"eBGP ({'active' if p.active else 'inactive'})",
-            bgp_as_path=p.as_path,
-            bgp_local_pref=p.local_pref,
-            bgp_med=p.med,
-            bgp_communities=p.communities,
-        ))
+    return _serialize_result(result)
 
-    # Build response with BGP path details
-    bgp_details = []
-    for p in paths:
-        city = resolve_att_city(p.communities)
-        bgp_details.append({
-            "next_hop": p.next_hop,
-            "as_path": p.as_path,
-            "origin": p.origin,
-            "local_pref": p.local_pref,
-            "med": p.med,
-            "communities": p.communities,
-            "active": p.active,
-            "city": city,
-            "inactive_reason": p.inactive_reason,
-            "peer_as": p.peer_as,
-            "router_id": p.router_id,
-            "age": p.age,
+
+@app.get("/api/devices")
+async def list_devices():
+    """Return all devices in inventory for the frontend dropdown."""
+    devices = []
+    for name, dev in inv.devices.items():
+        devices.append({
+            "hostname": name,
+            "role": dev.role,
+            "site": dev.site,
+            "vendor": dev.vendor,
         })
+    return {"devices": devices}
 
+
+@app.get("/api/health")
+async def health():
     return {
-        "query": {"source": prefix},
-        "origins": [o.model_dump() for o in origins],
-        "bgp_paths": bgp_details,
-        "path_count": len(paths),
-        "active_count": sum(1 for p in paths if p.active),
-        "domains_traversed": ["inet-edge"],
-        "warnings": [],
+        "status": "ok",
+        "version": "3.0.0",
+        "devices": len(inv.devices),
     }
 
 
-@app.get("/api/domains")
-async def list_domains():
-    return graph.get_domains()
-
-
-class FailureQuery(BaseModel):
-    node: str
-    query: PathQuery
-
-
-@app.post("/api/simulate-failure")
-async def simulate_failure(req: FailureQuery):
-    """Re-trace a path with a node/link removed."""
-    try:
-        result = await walker.trace_flow(
-            req.query.source,
-            req.query.destination,
-            exclude_nodes=[req.node],
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(500, str(e))
+def _serialize_result(result: TraceResult) -> dict:
+    """Serialize TraceResult to JSON response."""
+    return {
+        "prefix": result.prefix,
+        "start": result.start,
+        "total_time_ms": result.total_time_ms,
+        "paths": [
+            {
+                "hops": [
+                    {
+                        "device": h.device,
+                        "role": h.role,
+                        "next_hop": h.next_hop,
+                        "protocol": h.protocol,
+                        "communities": h.communities,
+                        "lp": h.lp,
+                        "as_path": h.as_path,
+                        "metric": h.metric,
+                        "interface": h.interface,
+                        "vrf": h.vrf,
+                        "plugin_labels": h.plugin_labels,
+                        "note": h.note,
+                        "query_time_ms": h.query_time_ms,
+                        "all_entries": h.all_entries,
+                    }
+                    for h in p.hops
+                ],
+                "complete": p.complete,
+                "end_reason": p.end_reason,
+            }
+            for p in result.paths
+        ],
+    }

@@ -1,241 +1,272 @@
 """
-Path Walker — The core engine that traces forwarding paths across routing domains.
+Path Walker V3 — Generic Next-Hop Follower.
 
-Strategy:
-1. Don't trust the RR — it shows every route in every VRF (noise)
-2. Start at the data plane — query actual FIBs, not RIBs
-3. Walk hop-by-hop, crossing domain boundaries (firewalls) explicitly
-4. Collect ALL paths (ECMP, backup, standby) not just "best"
+Input: prefix + starting device.
+Output: follow next-hops device by device until origin or dead end.
+
+No hardcoded architecture. No tier model. No hardcoded community meanings.
+It just follows the routing table like a packet would.
 """
 
+from __future__ import annotations
+
+import logging
+import time
+from dataclasses import dataclass, field
 from typing import Optional
-from models import (
-    PathQuery, PathResult, PathHop, PrefixOrigin,
-    MultiPath, SinglePath, DeviceRole
-)
-from graph_engine import GraphEngine
+
+from inventory import Inventory, DeviceInfo
+from collectors import RouteEntry
+from plugins import CommunityDecoderPlugin
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class HopResult:
+    """A single hop in the trace."""
+    device: str
+    role: str = ""
+    next_hop: str = ""
+    protocol: str = ""
+    communities: list[str] = field(default_factory=list)
+    lp: Optional[int] = None
+    as_path: list[str] = field(default_factory=list)
+    metric: Optional[int] = None
+    interface: str = ""
+    vrf: str = ""
+    plugin_labels: dict = field(default_factory=dict)
+    note: str = ""
+    query_time_ms: Optional[float] = None
+    raw_output: str = ""  # populated in verbose mode
+    all_entries: list[dict] = field(default_factory=list)  # all route entries at this hop
+
+
+@dataclass
+class TracePath:
+    """One path through the network (may branch for ECMP)."""
+    hops: list[HopResult] = field(default_factory=list)
+    complete: bool = False
+    end_reason: str = ""  # origin, blackhole, not_in_inventory, loop, unreachable
+
+
+@dataclass
+class TraceResult:
+    """Complete trace result."""
+    prefix: str
+    start: str
+    paths: list[TracePath] = field(default_factory=list)
+    total_time_ms: Optional[float] = None
+
+
+# Type for the async function that queries a device
+from typing import Callable, Awaitable
+CollectorFn = Callable[[str, str, str], Awaitable[list[RouteEntry]]]
 
 
 class PathWalker:
-    """Walks the forwarding plane across multi-domain networks."""
-    
-    def __init__(self, graph: GraphEngine):
-        self.graph = graph
-    
-    async def find_origin(self, prefix: str, vrf: str = None) -> PathResult:
-        """
-        Given a prefix, find where it's actually originated.
-        
-        Algorithm:
-        1. Start at backbone AGG routers (the crossroads)
-        2. Query FIB for the prefix — next-hop points toward a firewall
-        3. Query the firewall's static route table — next-hop enters a PE zone
-        4. Query the PE zone — find the actual originator
-        5. If originator is an edge router with eBGP, that's an external origin
-        6. If originator is a PE with connected/static, that's an internal origin
-        
-        Do NOT start at the RR. The RR shows 30 copies. We want the real one.
-        """
-        origins = []
-        warnings = []
-        domains = []
-        
-        # Phase 1: Ask the backbone where this prefix points
-        backbone_routers = self.graph.get_routers_by_role(DeviceRole.AGG)
-        
-        for agg in backbone_routers:
-            fib_entry = await self._query_fib(agg, prefix, vrf)
-            if not fib_entry:
-                continue
-            
-            # Phase 2: Follow next-hop — likely hits a firewall
-            next_device = self.graph.resolve_next_hop(agg, fib_entry.next_hop)
-            
-            if next_device and next_device.role == DeviceRole.FIREWALL:
-                # Phase 3: Cross the firewall boundary
-                fw_route = await self._query_fw_static(next_device, prefix)
-                if fw_route:
-                    # Phase 4: Enter the downstream domain
-                    downstream = self.graph.resolve_next_hop(
-                        next_device, fw_route.next_hop
-                    )
-                    origin = await self._find_originator_in_domain(
-                        downstream, prefix, vrf
-                    )
-                    if origin:
-                        origins.append(origin)
-                        
-            elif next_device and next_device.role in (DeviceRole.PE, DeviceRole.EDGE):
-                # Direct route — no firewall in path
-                origin = await self._identify_origin(next_device, prefix, vrf)
-                if origin:
-                    origins.append(origin)
-        
-        # Deduplicate origins (same prefix might be found via multiple AGGs)
-        origins = self._deduplicate_origins(origins)
-        
-        if not origins:
-            warnings.append(f"No forwarding-plane origin found for {prefix}")
-        
-        return PathResult(
-            query=PathQuery(source=prefix, vrf=vrf),
-            origins=origins,
-            domains_traversed=domains,
-            warnings=warnings
-        )
-    
-    async def trace_flow(
-        self, 
-        source: str, 
-        destination: str,
-        vrf: str = None,
-        exclude_nodes: list[str] = None
-    ) -> PathResult:
-        """
-        Trace all forwarding paths from source to destination.
-        
-        Algorithm:
-        1. Find which PE/router the source is attached to
-        2. Find the origin(s) of the destination prefix  
-        3. Walk the forwarding path from source PE to dest origin
-        4. At each hop: query FIB, collect ALL next-hops (ECMP)
-        5. At firewalls: query static/policy routes
-        6. At MPLS hops: collect label operations
-        7. Build the complete path tree
-        8. Optionally trace reverse path for asymmetry detection
-        """
-        # Find source attachment point
-        src_origin = await self.find_origin(source, vrf)
-        dst_origin = await self.find_origin(destination, vrf)
-        
-        forward_paths = []
-        warnings = []
-        
-        # For each source PE, trace toward each destination origin
-        for src in src_origin.origins:
-            for dst in dst_origin.origins:
-                paths = await self._walk_path(
-                    src.originating_router,
-                    dst.originating_router,
-                    destination,
-                    vrf,
-                    exclude_nodes
-                )
-                forward_paths.extend(paths)
-        
-        # Trace reverse for asymmetry detection
-        reverse_paths = []
-        for dst in dst_origin.origins:
-            for src in src_origin.origins:
-                rpaths = await self._walk_path(
-                    dst.originating_router,
-                    src.originating_router,
-                    source,
-                    vrf,
-                    exclude_nodes
-                )
-                reverse_paths.extend(rpaths)
-        
-        # Check for asymmetry
-        if forward_paths and reverse_paths:
-            if self._paths_asymmetric(forward_paths, reverse_paths):
-                warnings.append("⚠️ Asymmetric forwarding detected — forward and reverse take different paths")
-        
-        return PathResult(
-            query=PathQuery(source=source, destination=destination, vrf=vrf),
-            origins=dst_origin.origins,
-            forward_paths=MultiPath(paths=forward_paths) if forward_paths else None,
-            reverse_paths=MultiPath(paths=reverse_paths) if reverse_paths else None,
-            domains_traversed=self._collect_domains(forward_paths),
-            warnings=warnings
-        )
-    
-    async def _walk_path(
+    """
+    Generic next-hop follower. Queries devices one by one,
+    following the routing table like a packet would.
+    """
+
+    def __init__(
         self,
-        from_router: str,
-        to_router: str,
+        inventory: Inventory,
+        collector_fn: CollectorFn,
+        plugins: list[CommunityDecoderPlugin] | None = None,
+        max_hops: int = 20,
+        verbose: bool = False,
+    ):
+        self.inventory = inventory
+        self.collector_fn = collector_fn
+        self.plugins = plugins or []
+        self.max_hops = max_hops
+        self.verbose = verbose
+
+    async def trace(self, prefix: str, start_device: str, vrf: str = "") -> TraceResult:
+        """
+        Trace a prefix starting from a device. Returns all paths (ECMP branches as separate paths).
+        """
+        result = TraceResult(prefix=prefix, start=start_device)
+        t0 = time.monotonic()
+
+        # Start the recursive trace
+        initial_path = TracePath()
+        await self._walk(prefix, start_device, vrf, set(), initial_path, result)
+
+        result.total_time_ms = (time.monotonic() - t0) * 1000
+        return result
+
+    async def _walk(
+        self,
         prefix: str,
-        vrf: str = None,
-        exclude_nodes: list[str] = None,
-        max_hops: int = 30
-    ) -> list[SinglePath]:
-        """
-        Walk the forwarding path hop-by-hop from one router to another.
-        Branches on ECMP. Crosses firewall boundaries.
-        Returns all discovered paths.
-        """
-        paths = []
-        
-        # BFS/DFS through the forwarding plane
-        # Each "frontier" is a partial path being extended
-        frontier = [
-            SinglePath(
-                path_id=f"{from_router}->{to_router}-0",
-                hops=[],
-                is_primary=True
+        device_name: str,
+        vrf: str,
+        visited: set[str],
+        current_path: TracePath,
+        result: TraceResult,
+    ):
+        """Recursive walk. Branches on ECMP."""
+
+        # Loop detection
+        if device_name in visited:
+            current_path.end_reason = "loop"
+            current_path.complete = False
+            hop = HopResult(device=device_name, note="Loop detected — already visited")
+            current_path.hops.append(hop)
+            result.paths.append(current_path)
+            return
+
+        # Max hop safety
+        if len(current_path.hops) >= self.max_hops:
+            current_path.end_reason = "max_hops"
+            current_path.complete = False
+            result.paths.append(current_path)
+            return
+
+        visited = visited | {device_name}  # Copy for branching
+
+        # Get device info
+        dev = self.inventory.get_device(device_name)
+        role = dev.role if dev else ""
+
+        # Query the device with timing
+        t0 = time.monotonic()
+        try:
+            entries = await self.collector_fn(device_name, prefix, vrf)
+            query_time_ms = (time.monotonic() - t0) * 1000
+        except Exception as e:
+            logger.error(f"Failed to query {device_name}: {e}")
+            hop = HopResult(device=device_name, role=role, note=f"Unreachable: {e}")
+            current_path.hops.append(hop)
+            current_path.end_reason = "unreachable"
+            current_path.complete = False
+            result.paths.append(current_path)
+            return
+
+        if not entries:
+            # No route — blackhole
+            hop = HopResult(device=device_name, role=role, note="No route found")
+            current_path.hops.append(hop)
+            current_path.end_reason = "blackhole"
+            current_path.complete = False
+            result.paths.append(current_path)
+            return
+
+        # Use the active/best entry
+        active_entries = [e for e in entries if e.active]
+        if not active_entries:
+            active_entries = entries[:1]  # Fallback to first
+
+        best = active_entries[0]
+
+        # Check for connected/direct — origin found
+        if best.protocol in ("direct", "connected", "local"):
+            hop = HopResult(
+                device=device_name, role=role, protocol=best.protocol,
+                interface=best.interface, note="Origin — connected route",
             )
+            current_path.hops.append(hop)
+            current_path.end_reason = "origin"
+            current_path.complete = True
+            result.paths.append(current_path)
+            return
+
+        # Build hop for this device
+        hop = self._build_hop(device_name, role, best)
+        hop.query_time_ms = query_time_ms
+        # Include all entries summary for last-hop enrichment
+        hop.all_entries = [
+            {
+                "next_hop": e.next_hop,
+                "as_path": e.as_path,
+                "communities": e.communities,
+                "lp": e.local_pref,
+                "active": e.active,
+                "peer_as": e.peer_as,
+            }
+            for e in entries
         ]
-        
-        # TODO: Implement actual hop-by-hop walk
-        # For each hop:
-        #   1. Query FIB on current router for prefix
-        #   2. Get all next-hops (ECMP creates branches)
-        #   3. For each next-hop:
-        #      a. Resolve to a connected device
-        #      b. If device is firewall → query static routes → continue
-        #      c. If device is MPLS router → record label op → continue
-        #      d. If device is destination → path complete
-        #      e. If hop count > max → abort (loop detection)
-        
-        return paths
-    
-    async def _query_fib(self, router, prefix, vrf=None):
-        """Query a router's FIB (forwarding table) for a prefix."""
-        # TODO: Ansible/NETCONF collection populates a local cache
-        # This queries the cached data
-        pass
-    
-    async def _query_fw_static(self, firewall, prefix):
-        """Query a firewall's static route table."""
-        pass
-    
-    async def _find_originator_in_domain(self, entry_router, prefix, vrf):
-        """Walk within a routing domain to find the actual originator."""
-        pass
-    
-    async def _identify_origin(self, router, prefix, vrf):
-        """Determine how a router originates a prefix (connected/static/bgp)."""
-        pass
-    
-    def _deduplicate_origins(self, origins):
-        """Remove duplicate origins found via different AGG routers."""
-        seen = set()
-        unique = []
-        for o in origins:
-            key = (o.prefix, o.originating_router, o.vrf)
-            if key not in seen:
-                seen.add(key)
-                unique.append(o)
-        return unique
-    
-    def _paths_asymmetric(self, forward, reverse):
-        """Check if forward and reverse paths traverse different nodes."""
-        fwd_nodes = set()
-        for p in forward:
-            for h in p.hops:
-                fwd_nodes.add(h.hostname)
-        rev_nodes = set()
-        for p in reverse:
-            for h in p.hops:
-                rev_nodes.add(h.hostname)
-        return fwd_nodes != rev_nodes
-    
-    def _collect_domains(self, paths):
-        """Collect all routing domains traversed."""
-        domains = []
-        if paths:
-            for p in paths:
-                for h in p.hops:
-                    if h.domain not in domains:
-                        domains.append(h.domain)
-        return domains
+        current_path.hops.append(hop)
+
+        # Gather all next-hops for ECMP
+        all_next_hops = set()
+        all_next_hops.add(best.next_hop)
+        for ecmp_path in best.paths:
+            if ecmp_path.next_hop:
+                all_next_hops.add(ecmp_path.next_hop)
+        # Also check other active entries
+        for ae in active_entries[1:]:
+            if ae.next_hop:
+                all_next_hops.add(ae.next_hop)
+
+        all_next_hops.discard("")
+
+        if not all_next_hops:
+            current_path.end_reason = "blackhole"
+            current_path.complete = False
+            result.paths.append(current_path)
+            return
+
+        next_hops = sorted(all_next_hops)
+
+        # Single next-hop: continue on same path
+        if len(next_hops) == 1:
+            nh = next_hops[0]
+            next_device = self.inventory.resolve_ip(nh)
+            if not next_device:
+                current_path.end_reason = "not_in_inventory"
+                current_path.complete = False
+                last_hop = HopResult(
+                    device=f"unknown ({nh})",
+                    note=f"Next-hop {nh} not in inventory",
+                )
+                current_path.hops.append(last_hop)
+                result.paths.append(current_path)
+                return
+            await self._walk(prefix, next_device, vrf, visited, current_path, result)
+
+        else:
+            # ECMP: branch for each next-hop
+            for nh in next_hops:
+                next_device = self.inventory.resolve_ip(nh)
+                # Clone the path for this branch
+                branch = TracePath(hops=list(current_path.hops))
+
+                if not next_device:
+                    branch.end_reason = "not_in_inventory"
+                    branch.complete = False
+                    branch.hops.append(HopResult(
+                        device=f"unknown ({nh})",
+                        note=f"Next-hop {nh} not in inventory",
+                    ))
+                    result.paths.append(branch)
+                else:
+                    await self._walk(prefix, next_device, vrf, visited, branch, result)
+
+    def _build_hop(self, device: str, role: str, entry: RouteEntry) -> HopResult:
+        """Build a HopResult from a RouteEntry."""
+        hop = HopResult(
+            device=device,
+            role=role,
+            next_hop=entry.next_hop,
+            protocol=entry.protocol,
+            communities=entry.communities,
+            lp=entry.local_pref,
+            as_path=entry.as_path,
+            metric=entry.metric,
+            interface=entry.interface,
+            vrf=entry.vrf,
+        )
+
+        # Run plugins
+        for plugin in self.plugins:
+            try:
+                labels = plugin.decode(entry.communities, entry.local_pref)
+                if labels:
+                    hop.plugin_labels[plugin.name()] = labels
+            except Exception as e:
+                logger.warning(f"Plugin {plugin.name()} failed: {e}")
+
+        return hop

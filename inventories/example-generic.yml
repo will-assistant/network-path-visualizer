@@ -1,0 +1,51 @@
+---
+# Example generic inventory for Network Path Visualizer V3
+# The only job of inventory is: IP → device resolution
+#
+# Fields:
+#   management_ip  - hostname or IP used to connect
+#   vendor         - juniper (more vendors planned)
+#   connection     - telnet | ssh | netconf
+#   credentials    - username/password (or vault: reference)
+#   role           - freeform label (route-server, core, edge, pe, etc.)
+#   site           - freeform site/location label
+#   loopbacks      - list of loopback IPs (used for next-hop resolution)
+#   interfaces     - map of interface-name → IP (used for next-hop resolution)
+
+devices:
+  att-rs:
+    management_ip: route-server.ip.att.net
+    vendor: juniper
+    connection: telnet
+    credentials:
+      username: rviews
+      password: rviews
+    role: route-server
+    site: att
+
+  gtt-rs:
+    management_ip: route-server.ip.tiscali.net
+    vendor: juniper
+    connection: telnet
+    credentials:
+      username: public
+      password: public
+    role: route-server
+    site: gtt-global
+    notes: "GTT/AS3257 — 18 peering points across US, EU, APAC. Communities encode geography."
+
+  # Example internal devices (uncomment and fill in for real network)
+  # core-rtr-1:
+  #   management_ip: 10.0.0.1
+  #   vendor: juniper
+  #   connection: netconf
+  #   credentials:
+  #     username: admin
+  #     password: vault:core-rtr-1
+  #   role: core
+  #   site: dc1
+  #   loopbacks:
+  #     - 192.168.255.1
+  #   interfaces:
+  #     et-0/0/0: 10.1.1.1
+  #     et-0/0/1: 10.1.2.1
