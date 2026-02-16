@@ -1,227 +1,247 @@
 """
-BGP Collector — Query BGP tables via NETCONF, SSH, or public route servers.
+BGP Collector — Query BGP tables via public route servers or NETCONF.
 
-For development/testing: Uses AT&T's public route server (route-server.ip.att.net)
-via telnet to validate BGP path logic against real Internet routing data.
-
-For production: Uses Ansible + NETCONF to pull BGP RIB from internal routers.
+For development/testing: Uses AT&T's public route server (Junos-based)
+via pexpect telnet to validate BGP path logic against real Internet routing data.
 """
 
-import subprocess
-import json
 import re
+import logging
 from typing import Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class BGPPath:
     prefix: str
-    next_hop: str
+    next_hop: str            # Source IP (the peer that sent the route)
     as_path: str
-    origin: str          # 'i' (IGP), 'e' (EGP), '?' (incomplete)
+    origin: str              # 'IGP', 'EGP', '?'
     local_pref: Optional[int] = None
     med: Optional[int] = None
-    communities: Optional[list[str]] = None
-    best: bool = False
-    source_router: Optional[str] = None
+    communities: list[str] = field(default_factory=list)
+    active: bool = False
+    source_router: Optional[str] = None  # Task field peer IP
+    inactive_reason: Optional[str] = None
+    peer_as: Optional[int] = None
+    local_as: Optional[int] = None
+    router_id: Optional[str] = None
+    age: Optional[str] = None
+    validation_state: Optional[str] = None
 
 
-class BGPCollector:
-    """Collect BGP routing data from various sources."""
-    
-    # Public route servers for testing
-    PUBLIC_ROUTE_SERVERS = {
-        "att": {
-            "host": "route-server.ip.att.net",
-            "type": "telnet",
-            "vendor": "cisco_ios",
-            "description": "AT&T public looking glass"
-        },
-        "he": {
-            "host": "route-server.he.net",
-            "type": "telnet",
-            "vendor": "cisco_ios",
-            "description": "Hurricane Electric looking glass"
-        },
-        "ripe": {
-            "host": "rrc00.ripe.net",
-            "type": "telnet",
-            "vendor": "quagga",
-            "description": "RIPE RIS route collector"
-        }
-    }
-    
-    def __init__(self, source: str = "att"):
-        self.source = source
-        self.rs_config = self.PUBLIC_ROUTE_SERVERS.get(source)
-    
-    async def lookup_prefix(self, prefix: str) -> list[BGPPath]:
+class JunosRouteParser:
+    """Parse Junos 'show route <prefix> detail' output into BGPPath objects."""
+
+    @staticmethod
+    def parse(output: str, prefix: str = "") -> list[BGPPath]:
         """
-        Look up all BGP paths for a prefix.
+        Parse full Junos detail output. Handles multiple entries per prefix.
         
-        Against public route servers: telnet + CLI parsing
-        Against internal routers: NETCONF structured data
-        """
-        if self.rs_config and self.rs_config["type"] == "telnet":
-            return await self._telnet_lookup(prefix)
-        else:
-            return await self._netconf_lookup(prefix)
-    
-    async def _telnet_lookup(self, prefix: str) -> list[BGPPath]:
-        """
-        Query a public route server via telnet.
-        
-        Example session with AT&T:
-        $ telnet route-server.ip.att.net
-        > show ip bgp 8.8.8.0/24
-        
-        Returns all paths with AS-path, next-hop, origin, etc.
-        """
-        host = self.rs_config["host"]
-        
-        # Use expect-style interaction via subprocess
-        # For now, use a simple netcat approach
-        cmd = f"""
-        (echo "show ip bgp {prefix}"; sleep 3; echo "exit") | \
-        timeout 10 telnet {host} 2>/dev/null
-        """
-        
-        try:
-            result = subprocess.run(
-                ["bash", "-c", cmd],
-                capture_output=True,
-                text=True,
-                timeout=15
-            )
-            return self._parse_cisco_bgp_output(result.stdout, prefix)
-        except subprocess.TimeoutExpired:
-            return []
-    
-    async def _netconf_lookup(self, prefix: str) -> list[BGPPath]:
-        """
-        Query internal router via NETCONF.
-        Uses ncclient for Juniper/Cisco.
-        
-        Juniper RPC: <get-route-information>
-        Cisco XR YANG: openconfig-bgp-rib
-        """
-        # TODO: Implement NETCONF collection
-        # This will be populated by Ansible playbook results
-        pass
-    
-    def _parse_cisco_bgp_output(self, output: str, prefix: str) -> list[BGPPath]:
-        """
-        Parse Cisco 'show ip bgp <prefix>' output.
-        
-        Example output:
-        BGP routing table entry for 8.8.8.0/24
-           Paths: (23 available, best #1)
-           15169
-             12.122.28.45 from 12.122.28.45 (12.122.28.45)
-               Origin IGP, metric 0, localpref 100, valid, external, best
-               Community: 7018:5000 7018:37232
+        Each entry starts with '*BGP' (active) or ' BGP' (inactive) at
+        column ~8, followed by 'Preference: ...' on the same line.
         """
         paths = []
-        lines = output.split('\n')
+        # Split into individual BGP entry blocks
+        # Each block starts with optional '*' then 'BGP    Preference:'
+        entry_pattern = re.compile(r'^(\s+)(\*?)BGP\s+Preference:', re.MULTILINE)
         
-        current_path = None
-        in_paths = False
+        # Find prefix line to extract the actual prefix
+        prefix_match = re.search(r'^(\S+/\d+)\s+\((\d+) entries', output, re.MULTILINE)
+        if prefix_match:
+            prefix = prefix_match.group(1)
         
-        for line in lines:
-            line = line.strip()
-            
-            # Detect path blocks
-            if 'Paths:' in line:
-                in_paths = True
-                continue
-            
-            if not in_paths:
-                continue
-            
-            # AS path line (just numbers)
-            as_match = re.match(r'^[\d\s]+$', line)
-            if as_match and line.strip():
-                if current_path:
-                    paths.append(current_path)
-                current_path = BGPPath(
-                    prefix=prefix,
-                    next_hop="",
-                    as_path=line.strip(),
-                    origin="?"
-                )
-                continue
-            
-            # Next-hop line
-            nh_match = re.match(r'^\s*([\d.]+)\s+from', line)
-            if nh_match and current_path:
-                current_path.next_hop = nh_match.group(1)
-                continue
-            
-            # Origin/attributes line
-            if current_path and 'Origin' in line:
-                if 'IGP' in line:
-                    current_path.origin = 'i'
-                elif 'EGP' in line:
-                    current_path.origin = 'e'
-                else:
-                    current_path.origin = '?'
-                
-                if 'best' in line:
-                    current_path.best = True
-                
-                lp_match = re.search(r'localpref\s+(\d+)', line)
-                if lp_match:
-                    current_path.local_pref = int(lp_match.group(1))
-                
-                med_match = re.search(r'metric\s+(\d+)', line)
-                if med_match:
-                    current_path.med = int(med_match.group(1))
-            
-            # Community line
-            if current_path and 'Community:' in line:
-                comms = line.replace('Community:', '').strip().split()
-                current_path.communities = comms
+        # Split into blocks by finding each BGP entry start
+        starts = [m.start() for m in entry_pattern.finditer(output)]
+        if not starts:
+            return paths
         
-        if current_path:
-            paths.append(current_path)
+        blocks = []
+        for i, start in enumerate(starts):
+            end = starts[i + 1] if i + 1 < len(starts) else len(output)
+            blocks.append(output[start:end])
+        
+        for block in blocks:
+            path = JunosRouteParser._parse_block(block, prefix)
+            if path:
+                paths.append(path)
         
         return paths
 
+    @staticmethod
+    def _parse_block(block: str, prefix: str) -> Optional[BGPPath]:
+        """Parse a single BGP entry block."""
+        lines = block.split('\n')
+        
+        # Active if line starts with '*BGP'
+        active = '*BGP' in lines[0]
+        
+        path = BGPPath(
+            prefix=prefix,
+            next_hop="",
+            as_path="",
+            origin="?",
+            active=active,
+        )
+        
+        for line in lines:
+            line_stripped = line.strip()
+            
+            # Source (the peer IP that sent this route)
+            m = re.match(r'Source:\s+(\S+)', line_stripped)
+            if m:
+                path.next_hop = m.group(1)
+                path.source_router = m.group(1)
+                continue
+            
+            # State
+            m = re.match(r'State:\s+<(.+?)>', line_stripped)
+            if m:
+                state = m.group(1)
+                path.active = 'Active' in state
+                if 'NotBest' in state:
+                    path.active = False
+                continue
+            
+            # Inactive reason
+            m = re.match(r'Inactive reason:\s+(.+)', line_stripped)
+            if m:
+                path.inactive_reason = m.group(1).strip()
+                continue
+            
+            # Local AS / Peer AS
+            m = re.search(r'Local AS:\s+(\d+)\s+Peer AS:\s+(\d+)', line_stripped)
+            if m:
+                path.local_as = int(m.group(1))
+                path.peer_as = int(m.group(2))
+                continue
+            
+            # Age and Metric2 (MED)
+            m = re.search(r'Age:\s+(\S+)', line_stripped)
+            if m:
+                path.age = m.group(1)
+            m = re.search(r'Metric2:\s+(\d+)', line_stripped)
+            if m:
+                path.med = int(m.group(1))
+                continue
+            
+            # Validation State
+            m = re.match(r'Validation State:\s+(\S+)', line_stripped)
+            if m:
+                path.validation_state = m.group(1)
+                continue
+            
+            # AS path — format: "7018 15169 I" where last token is origin
+            m = re.match(r'AS path:\s+(.+)', line_stripped)
+            if m:
+                as_path_raw = m.group(1).strip()
+                # Origin is the last token: I (IGP), E (EGP), ? (incomplete)
+                parts = as_path_raw.split()
+                if parts and parts[-1] in ('I', 'E', '?'):
+                    origin_char = parts.pop()
+                    path.origin = {'I': 'IGP', 'E': 'EGP', '?': 'Incomplete'}.get(origin_char, origin_char)
+                path.as_path = ' '.join(parts)
+                continue
+            
+            # Communities
+            m = re.match(r'Communities:\s+(.+)', line_stripped)
+            if m:
+                path.communities = m.group(1).strip().split()
+                continue
+            
+            # Localpref
+            m = re.match(r'Localpref:\s+(\d+)', line_stripped)
+            if m:
+                path.local_pref = int(m.group(1))
+                continue
+            
+            # Router ID
+            m = re.match(r'Router ID:\s+(\S+)', line_stripped)
+            if m:
+                path.router_id = m.group(1)
+                continue
+            
+            # Task field — extract peer info
+            m = re.match(r'Task:\s+BGP_(\d+)\.(.+)', line_stripped)
+            if m:
+                path.peer_as = int(m.group(1))
+                continue
+        
+        return path if path.next_hop else None
 
-class AnsibleBGPCollector:
-    """
-    Collect BGP data via Ansible playbooks.
-    
-    Runs playbooks that NETCONF/SSH into routers,
-    pulls structured BGP data, saves as JSON.
-    """
-    
-    def __init__(self, inventory_path: str, playbook_dir: str):
-        self.inventory_path = inventory_path
-        self.playbook_dir = playbook_dir
-    
-    async def collect_all(self) -> dict:
-        """Run the full collection playbook."""
-        cmd = [
-            "ansible-playbook",
-            f"{self.playbook_dir}/collect-bgp.yml",
-            "-i", self.inventory_path,
-            "--extra-vars", "output_format=json"
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        # TODO: Parse Ansible output, load collected JSON
-        return {}
-    
-    async def collect_prefix(self, router: str, prefix: str) -> list[BGPPath]:
-        """On-demand collection for a specific prefix from a specific router."""
-        cmd = [
-            "ansible-playbook",
-            f"{self.playbook_dir}/collect-prefix.yml",
-            "-i", self.inventory_path,
-            "--limit", router,
-            "--extra-vars", json.dumps({"target_prefix": prefix})
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        # TODO: Parse collected data
-        return []
+
+# AT&T community → city mapping (from AT&T NOC documentation)
+ATT_CITY_COMMUNITIES = {
+    "7018:32101": "New York, NY",
+    "7018:33051": "Chicago, IL",
+    "7018:34011": "Dallas, TX",
+    "7018:36244": "Washington, DC",
+    "7018:37232": "Atlanta, GA",
+    "7018:38000": "San Francisco, CA",
+    "7018:39220": "Los Angeles, CA",
+    "7018:39343": "Seattle, WA",
+}
+
+
+def resolve_att_city(communities: list[str]) -> Optional[str]:
+    """Resolve AT&T community to city name."""
+    for comm in communities:
+        if comm in ATT_CITY_COMMUNITIES:
+            return ATT_CITY_COMMUNITIES[comm]
+    return None
+
+
+class BGPCollector:
+    """Collect BGP routing data from AT&T public route server via pexpect."""
+
+    def __init__(self, host: str = "route-server.ip.att.net",
+                 username: str = "rviews", password: str = "rviews"):
+        self.host = host
+        self.username = username
+        self.password = password
+
+    async def lookup_prefix(self, prefix: str) -> list[BGPPath]:
+        """Query AT&T route server for all paths to a prefix."""
+        import pexpect
+
+        prompt = r'rviews@[^\s]+>'
+        
+        try:
+            child = pexpect.spawn(
+                f'telnet {self.host}',
+                timeout=60,
+                maxread=2000000,
+                encoding='utf-8',
+            )
+            
+            child.expect('login:', timeout=30)
+            child.sendline(self.username)
+            child.expect('Password:', timeout=10)
+            child.sendline(self.password)
+            child.expect(prompt, timeout=30)
+            
+            # Disable paging
+            child.sendline('set cli screen-length 0')
+            child.expect(prompt, timeout=10)
+            
+            # Query the prefix
+            child.sendline(f'show route {prefix} detail | no-more')
+            child.expect(prompt, timeout=180)
+            
+            output = child.before
+            
+            child.sendline('exit')
+            child.close()
+            
+            return JunosRouteParser.parse(output, prefix)
+            
+        except Exception as e:
+            logger.error(f"AT&T RS query failed: {e}")
+            raise
+
+    def lookup_prefix_sync(self, prefix: str) -> list[BGPPath]:
+        """Synchronous version for testing."""
+        import asyncio
+        return asyncio.get_event_loop().run_until_complete(self.lookup_prefix(prefix))

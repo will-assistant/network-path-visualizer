@@ -34,17 +34,19 @@ Central YAML inventory controls:
 - **This is the source of truth for the tool**
 
 ## Vendor Access
-| Vendor | Protocol | Notes |
-|--------|----------|-------|
-| Juniper | NETCONF (ncclient/PyEZ) | Primary routers |
-| Cisco IOS-XR | NETCONF | Some routers |
-| Palo Alto | Panorama API (XML/REST) | Centralized FW management |
-| Fortinet | FortiOS REST API | Some firewalls |
+| Vendor | Protocol | Status |
+|--------|----------|--------|
+| Juniper | NETCONF (ncclient/PyEZ) + CLI | **Phase 1 — build now** |
+| Cisco IOS-XR | NETCONF | Later — Jeremy will provide access |
+| Palo Alto | Panorama API (XML/REST) | Later — Jeremy will provide access |
+| Fortinet | FortiOS REST API | Later — Jeremy will provide access |
+
+**⚠️ Juniper first. Other vendors only after Jeremy provides examples and access.**
 
 ## Testing Strategy
-1. **AT&T public route server** — real Junos, real BGP data, 16M routes. Prove parser + multi-path display.
-2. **Mock internal topology** — fake but realistic multi-domain layout matching Jeremy's architecture. Prove path walking + domain crossing.
-3. **Real devices** — when Jeremy provides access/creds. Prove production readiness.
+1. **Public Junos route servers** — AT&T RS + others. Real Junos, real BGP data. Build and test all parsing here.
+2. **Mock internal topology** — Juniper-only for now. Prove path walking + domain crossing.
+3. **Real devices** — when Jeremy provides access/creds later.
 
 ## Build Phases
 

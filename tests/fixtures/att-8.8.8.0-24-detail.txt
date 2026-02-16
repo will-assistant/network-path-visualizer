@@ -1,0 +1,325 @@
+ show route 8.8.8.0/24 detail | no-more 
+
+inet.0: 1022834 destinations, 16363462 routes (1022833 active, 0 holddown, 1 hidden)
+8.8.8.0/24 (16 entries, 1 announced)
+        *BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x95fe75c
+                Next-hop reference count: 1022710
+                Kernel Table Id: 0
+                Source: 12.122.83.238
+                Protocol next hop: 12.122.83.238
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <Active Ext>
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.83.238
+                Announcement bits (1): 3-Resolve tree 1 
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:36244
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.83.238
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x1bc2c29c
+                Next-hop reference count: 1022710
+                Kernel Table Id: 0
+                Source: 12.122.120.7
+                Protocol next hop: 12.122.120.7
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.120.7
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:39220
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.120.7
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x20545a1c
+                Next-hop reference count: 1022707
+                Kernel Table Id: 0
+                Source: 12.122.124.12
+                Protocol next hop: 12.122.124.12
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.124.12
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:39343
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.124.12
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x24de24dc
+                Next-hop reference count: 1022710
+                Kernel Table Id: 0
+                Source: 12.122.124.67
+                Protocol next hop: 12.122.124.67
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.124.67
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:37232
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.124.67
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x2765f31c
+                Next-hop reference count: 1022710
+                Kernel Table Id: 0
+                Source: 12.122.124.138
+                Protocol next hop: 12.122.124.138
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.124.138
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:36244
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.124.138
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x2681ca5c
+                Next-hop reference count: 1022710
+                Kernel Table Id: 0
+                Source: 12.122.125.6
+                Protocol next hop: 12.122.125.6
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.125.6
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:33051
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.125.6
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x1bc3dbdc
+                Next-hop reference count: 1022710
+                Kernel Table Id: 0
+                Source: 12.122.125.44
+                Protocol next hop: 12.122.125.44
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.125.44
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:37232
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.125.44
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x95efbdc
+                Next-hop reference count: 1022710
+                Kernel Table Id: 0
+                Source: 12.122.125.106
+                Protocol next hop: 12.122.125.106
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.125.106
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:37232
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.125.106
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x18291d1c
+                Next-hop reference count: 1022710
+                Kernel Table Id: 0
+                Source: 12.122.125.132
+                Protocol next hop: 12.122.125.132
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.125.132
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:33051
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.125.132
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x18292e5c
+                Next-hop reference count: 1022710
+                Kernel Table Id: 0
+                Source: 12.122.125.165
+                Protocol next hop: 12.122.125.165
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.125.165
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:33051
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.125.165
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x182959dc
+                Next-hop reference count: 1022710
+                Kernel Table Id: 0
+                Source: 12.122.125.224
+                Protocol next hop: 12.122.125.224
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.125.224
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:32101
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.125.224
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x2055285c
+                Next-hop reference count: 1022708
+                Kernel Table Id: 0
+                Source: 12.122.126.9
+                Protocol next hop: 12.122.126.9
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.126.9
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:34011
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.126.9
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x24dd25dc
+                Next-hop reference count: 1022710
+                Kernel Table Id: 0
+                Source: 12.122.126.64
+                Protocol next hop: 12.122.126.64
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.126.64
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:38000
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.126.64
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x1bc4c51c
+                Next-hop reference count: 1022710
+                Kernel Table Id: 0
+                Source: 12.122.126.232
+                Protocol next hop: 12.122.126.232
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.126.232
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:32101
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.126.232
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x95fae5c
+                Next-hop reference count: 1022710
+                Kernel Table Id: 0
+                Source: 12.122.127.66
+                Protocol next hop: 12.122.127.66
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.127.66
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:34011
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.127.66
+                Thread: junos-main 
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x2de9c91c
+                Next-hop reference count: 1022711
+                Kernel Table Id: 0
+                Source: 12.122.159.217
+                Protocol next hop: 12.122.159.217
+                Indirect next hop: 0x2 no-forward INH Session ID: 0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Router ID
+                Local AS: 65000 Peer AS:  7018
+                Age: 2w2d 5:20:06 	Metric2: 0 
+                Validation State: valid 
+                Task: BGP_7018.12.122.159.217
+                AS path: 7018 15169 I 
+                Communities: 7018:2500 7018:39343
+                Accepted
+                Localpref: 100
+                Router ID: 12.122.159.217
+                Thread: junos-main 
+
