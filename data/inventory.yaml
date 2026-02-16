@@ -1,257 +1,407 @@
-# Network Path Visualizer — Mock Inventory
-# Models Jeremy's network: PE → FW → AGG backbone → FW → Internet Edge
+# Network Path Visualizer — 7-Tier MPLS Mock Inventory
+#
+# Tiers (south to north):
+#   1. DCCE  — Data center customer edge
+#   2. DCPE  — Data center provider edge
+#   3. SPE   — Service PE (parent/child VRF gateway)
+#   4. T2-FW — Tier-2 firewall (static routes)
+#   5. AGG   — Aggregation backbone (MPLS core)
+#   6. T1-FW — Tier-1 firewall (static routes)
+#   7. IPE   — Internet PE (peering edge)
+#
+# Two sites: East (NYC/IAD) and West (LAX/SFO)
 
 domains:
-  pe-east:
-    type: pe_zone
+  dc-east:
+    type: dc
     protocol: "isis+mpls"
-  pe-west:
-    type: pe_zone
+  dc-west:
+    type: dc
     protocol: "isis+mpls"
-  backbone:
-    type: backbone
+  service-edge-east:
+    type: service_edge
+    protocol: "isis+mpls"
+  service-edge-west:
+    type: service_edge
+    protocol: "isis+mpls"
+  agg-backbone:
+    type: agg_backbone
     protocol: "isis+mpls"
   inet-edge:
     type: inet_edge
     protocol: "ebgp"
 
 routers:
-  # PE Zone - East
-  pe-nyc-01:
-    mgmt_ip: "10.0.1.1"
+
+  # ═══════════════════════════════════════════
+  # TIER 1 — DCCE (Data Center Customer Edge)
+  # ═══════════════════════════════════════════
+
+  dcce-east-01:
+    mgmt_ip: "10.1.1.1"
     vendor: juniper
-    role: pe
-    domain: pe-east
+    role: dcce
+    domain: dc-east
+    site: east
+    tier: 1
     interfaces:
       - name: ge-0/0/0
-        ip: "10.10.1.1/30"
-        neighbor: fw-east-01
+        ip: "10.100.1.1/30"
+        neighbor: dcpe-east-01
+        speed: "10G"
+
+  dcce-west-01:
+    mgmt_ip: "10.1.2.1"
+    vendor: juniper
+    role: dcce
+    domain: dc-west
+    site: west
+    tier: 1
+    interfaces:
+      - name: ge-0/0/0
+        ip: "10.100.2.1/30"
+        neighbor: dcpe-west-01
+        speed: "10G"
+
+  # ═══════════════════════════════════════════
+  # TIER 2 — DCPE (Data Center Provider Edge)
+  # ═══════════════════════════════════════════
+
+  dcpe-east-01:
+    mgmt_ip: "10.2.1.1"
+    vendor: juniper
+    role: dcpe
+    domain: dc-east
+    site: east
+    tier: 2
+    interfaces:
+      - name: ge-0/0/0
+        ip: "10.100.1.2/30"
+        neighbor: dcce-east-01
         speed: "10G"
       - name: ge-0/0/1
-        ip: "10.10.1.5/30"
-        neighbor: pe-iad-01
+        ip: "10.100.3.1/30"
+        neighbor: spe-east-01
         speed: "10G"
 
-  pe-iad-01:
-    mgmt_ip: "10.0.1.2"
+  dcpe-west-01:
+    mgmt_ip: "10.2.2.1"
     vendor: juniper
-    role: pe
-    domain: pe-east
+    role: dcpe
+    domain: dc-west
+    site: west
+    tier: 2
     interfaces:
       - name: ge-0/0/0
-        ip: "10.10.1.9/30"
-        neighbor: fw-east-01
+        ip: "10.100.2.2/30"
+        neighbor: dcce-west-01
         speed: "10G"
       - name: ge-0/0/1
-        ip: "10.10.1.6/30"
-        neighbor: pe-nyc-01
+        ip: "10.100.4.1/30"
+        neighbor: spe-west-01
         speed: "10G"
 
-  # PE Zone - West
-  pe-lax-01:
-    mgmt_ip: "10.0.2.1"
+  # ═══════════════════════════════════════════
+  # TIER 3 — SPE (Service PE / VRF Gateway)
+  # ═══════════════════════════════════════════
+
+  spe-east-01:
+    mgmt_ip: "10.3.1.1"
     vendor: juniper
-    role: pe
-    domain: pe-west
+    role: spe
+    domain: service-edge-east
+    site: east
+    tier: 3
+    vrfs:
+      - name: "CUST-A"
+        vrf_type: child
+        parent_vrf: "GATEWAY"
+        rd: "65000:100"
+        rt_import: ["65000:100"]
+        rt_export: ["65000:100"]
+      - name: "GATEWAY"
+        vrf_type: parent
+        rd: "65000:1"
+        rt_import: ["65000:1"]
+        rt_export: ["65000:1"]
     interfaces:
       - name: ge-0/0/0
-        ip: "10.10.2.1/30"
-        neighbor: fw-west-01
+        ip: "10.100.3.2/30"
+        neighbor: dcpe-east-01
         speed: "10G"
+        vrf: "CUST-A"
+      - name: ge-0/0/1
+        ip: "10.100.5.1/30"
+        neighbor: t2fw-east-01
+        speed: "10G"
+        vrf: "GATEWAY"
 
-  pe-sfo-01:
-    mgmt_ip: "10.0.2.2"
+  spe-west-01:
+    mgmt_ip: "10.3.2.1"
     vendor: juniper
-    role: pe
-    domain: pe-west
+    role: spe
+    domain: service-edge-west
+    site: west
+    tier: 3
+    vrfs:
+      - name: "CUST-A"
+        vrf_type: child
+        parent_vrf: "GATEWAY"
+        rd: "65000:100"
+        rt_import: ["65000:100"]
+        rt_export: ["65000:100"]
+      - name: "GATEWAY"
+        vrf_type: parent
+        rd: "65000:1"
+        rt_import: ["65000:1"]
+        rt_export: ["65000:1"]
     interfaces:
       - name: ge-0/0/0
-        ip: "10.10.2.5/30"
-        neighbor: fw-west-01
+        ip: "10.100.4.2/30"
+        neighbor: dcpe-west-01
         speed: "10G"
+        vrf: "CUST-A"
+      - name: ge-0/0/1
+        ip: "10.100.6.1/30"
+        neighbor: t2fw-west-01
+        speed: "10G"
+        vrf: "GATEWAY"
 
-  # Firewalls - Domain boundaries
-  fw-east-01:
-    mgmt_ip: "10.0.3.1"
+  # ═══════════════════════════════════════════
+  # TIER 4 — T2 Firewall (static routes only)
+  # ═══════════════════════════════════════════
+
+  t2fw-east-01:
+    mgmt_ip: "10.4.1.1"
     vendor: juniper
-    role: firewall
-    domain: backbone
+    role: t2_fw
+    domain: agg-backbone
+    site: east
+    tier: 4
     interfaces:
-      - name: ethernet1/1
-        ip: "10.10.1.2/30"
-        neighbor: pe-nyc-01
+      - name: ge-0/0/0
+        ip: "10.100.5.2/30"
+        neighbor: spe-east-01
         speed: "10G"
-      - name: ethernet1/2
-        ip: "10.10.1.10/30"
-        neighbor: pe-iad-01
-        speed: "10G"
-      - name: ethernet1/3
-        ip: "10.10.3.1/30"
-        neighbor: agg-01
+      - name: ge-0/0/1
+        ip: "10.100.7.1/30"
+        neighbor: agg-east-01
         speed: "40G"
 
-  fw-west-01:
-    mgmt_ip: "10.0.3.2"
+  t2fw-west-01:
+    mgmt_ip: "10.4.2.1"
     vendor: juniper
-    role: firewall
-    domain: backbone
+    role: t2_fw
+    domain: agg-backbone
+    site: west
+    tier: 4
     interfaces:
-      - name: ethernet1/1
-        ip: "10.10.2.2/30"
-        neighbor: pe-lax-01
+      - name: ge-0/0/0
+        ip: "10.100.6.2/30"
+        neighbor: spe-west-01
         speed: "10G"
-      - name: ethernet1/2
-        ip: "10.10.2.6/30"
-        neighbor: pe-sfo-01
-        speed: "10G"
-      - name: ethernet1/3
-        ip: "10.10.3.5/30"
-        neighbor: agg-03
+      - name: ge-0/0/1
+        ip: "10.100.8.1/30"
+        neighbor: agg-west-01
         speed: "40G"
 
-  fw-edge-01:
-    mgmt_ip: "10.0.3.3"
-    vendor: juniper
-    role: firewall
-    domain: backbone
-    interfaces:
-      - name: port1
-        ip: "10.10.3.9/30"
-        neighbor: agg-02
-        speed: "40G"
-      - name: port2
-        ip: "10.10.4.1/30"
-        neighbor: edge-01
-        speed: "40G"
-      - name: port3
-        ip: "10.10.4.5/30"
-        neighbor: edge-02
-        speed: "40G"
+  # ═══════════════════════════════════════════
+  # TIER 5 — AGG (Aggregation / MPLS Backbone)
+  # ═══════════════════════════════════════════
 
-  # AGG Backbone
-  agg-01:
-    mgmt_ip: "10.0.4.1"
+  agg-east-01:
+    mgmt_ip: "10.5.1.1"
     vendor: juniper
     role: agg
-    domain: backbone
+    domain: agg-backbone
+    site: east
+    tier: 5
     interfaces:
       - name: et-0/0/0
-        ip: "10.10.3.2/30"
-        neighbor: fw-east-01
+        ip: "10.100.7.2/30"
+        neighbor: t2fw-east-01
         speed: "40G"
       - name: et-0/0/1
-        ip: "10.10.5.1/30"
-        neighbor: agg-02
+        ip: "10.100.9.1/30"
+        neighbor: agg-west-01
         speed: "100G"
       - name: et-0/0/2
-        ip: "10.10.5.5/30"
-        neighbor: agg-03
-        speed: "100G"
+        ip: "10.100.11.1/30"
+        neighbor: t1fw-east-01
+        speed: "40G"
       - name: lo0
-        ip: "10.0.100.1/32"
+        ip: "10.200.1.1/32"
         speed: ""
 
-  agg-02:
-    mgmt_ip: "10.0.4.2"
+  agg-west-01:
+    mgmt_ip: "10.5.2.1"
     vendor: juniper
     role: agg
-    domain: backbone
+    domain: agg-backbone
+    site: west
+    tier: 5
     interfaces:
       - name: et-0/0/0
-        ip: "10.10.5.2/30"
-        neighbor: agg-01
-        speed: "100G"
-      - name: et-0/0/1
-        ip: "10.10.5.9/30"
-        neighbor: agg-03
-        speed: "100G"
-      - name: et-0/0/2
-        ip: "10.10.3.10/30"
-        neighbor: fw-edge-01
-        speed: "40G"
-      - name: lo0
-        ip: "10.0.100.2/32"
-        speed: ""
-
-  agg-03:
-    mgmt_ip: "10.0.4.3"
-    vendor: juniper
-    role: agg
-    domain: backbone
-    interfaces:
-      - name: et-0/0/0
-        ip: "10.10.3.6/30"
-        neighbor: fw-west-01
+        ip: "10.100.8.2/30"
+        neighbor: t2fw-west-01
         speed: "40G"
       - name: et-0/0/1
-        ip: "10.10.5.6/30"
-        neighbor: agg-01
+        ip: "10.100.9.2/30"
+        neighbor: agg-east-01
         speed: "100G"
       - name: et-0/0/2
-        ip: "10.10.5.10/30"
-        neighbor: agg-02
-        speed: "100G"
+        ip: "10.100.12.1/30"
+        neighbor: t1fw-west-01
+        speed: "40G"
       - name: lo0
-        ip: "10.0.100.3/32"
+        ip: "10.200.2.1/32"
         speed: ""
 
-  # Route Reflector
-  rr-01:
-    mgmt_ip: "10.0.5.1"
+  # ═══════════════════════════════════════════
+  # TIER 5.5 — Route Reflectors (3 tiers)
+  # ═══════════════════════════════════════════
+
+  rr-core-01:
+    mgmt_ip: "10.5.10.1"
     vendor: juniper
     role: rr
-    domain: backbone
+    domain: agg-backbone
+    site: east
+    tier: 5
+    rr_tier: core
     interfaces:
       - name: lo0
-        ip: "10.0.200.1/32"
+        ip: "10.200.10.1/32"
         speed: ""
-      - name: et-0/0/0
-        ip: "10.10.6.1/30"
-        neighbor: agg-01
-        speed: "10G"
-      - name: et-0/0/1
-        ip: "10.10.6.5/30"
-        neighbor: agg-02
+      - name: ge-0/0/0
+        ip: "10.100.20.1/30"
+        neighbor: agg-east-01
         speed: "10G"
 
-  # Internet Edge
-  edge-01:
-    mgmt_ip: "10.0.6.1"
+  rr-agg-01:
+    mgmt_ip: "10.5.10.2"
     vendor: juniper
-    role: edge
-    domain: inet-edge
+    role: rr
+    domain: agg-backbone
+    site: east
+    tier: 5
+    rr_tier: agg
     interfaces:
-      - name: GigabitEthernet0/0/0
-        ip: "10.10.4.2/30"
-        neighbor: fw-edge-01
+      - name: lo0
+        ip: "10.200.10.2/32"
+        speed: ""
+      - name: ge-0/0/0
+        ip: "10.100.20.5/30"
+        neighbor: agg-east-01
+        speed: "10G"
+
+  rr-inet-01:
+    mgmt_ip: "10.5.10.3"
+    vendor: juniper
+    role: rr
+    domain: agg-backbone
+    site: east
+    tier: 5
+    rr_tier: inet
+    interfaces:
+      - name: lo0
+        ip: "10.200.10.3/32"
+        speed: ""
+      - name: ge-0/0/0
+        ip: "10.100.20.9/30"
+        neighbor: agg-east-01
+        speed: "10G"
+
+  # ═══════════════════════════════════════════
+  # TIER 6 — T1 Firewall (static routes only)
+  # ═══════════════════════════════════════════
+
+  t1fw-east-01:
+    mgmt_ip: "10.6.1.1"
+    vendor: juniper
+    role: t1_fw
+    domain: agg-backbone
+    site: east
+    tier: 6
+    interfaces:
+      - name: ge-0/0/0
+        ip: "10.100.11.2/30"
+        neighbor: agg-east-01
         speed: "40G"
-      - name: GigabitEthernet0/0/1
+      - name: ge-0/0/1
+        ip: "10.100.13.1/30"
+        neighbor: ipe-east-01
+        speed: "40G"
+
+  t1fw-west-01:
+    mgmt_ip: "10.6.2.1"
+    vendor: juniper
+    role: t1_fw
+    domain: agg-backbone
+    site: west
+    tier: 6
+    interfaces:
+      - name: ge-0/0/0
+        ip: "10.100.12.2/30"
+        neighbor: agg-west-01
+        speed: "40G"
+      - name: ge-0/0/1
+        ip: "10.100.14.1/30"
+        neighbor: ipe-west-01
+        speed: "40G"
+
+  # ═══════════════════════════════════════════
+  # TIER 7 — IPE (Internet PE / Peering Edge)
+  # ═══════════════════════════════════════════
+
+  ipe-east-01:
+    mgmt_ip: "10.7.1.1"
+    vendor: juniper
+    role: ipe
+    domain: inet-edge
+    site: east
+    tier: 7
+    interfaces:
+      - name: ge-0/0/0
+        ip: "10.100.13.2/30"
+        neighbor: t1fw-east-01
+        speed: "40G"
+      - name: ge-0/0/1
         ip: "198.51.100.1/30"
-        description: "eBGP to AT&T (AS7018)"
+        description: "eBGP to upstream (AS7018)"
         speed: "10G"
 
-  edge-02:
-    mgmt_ip: "10.0.6.2"
+  ipe-west-01:
+    mgmt_ip: "10.7.2.1"
     vendor: juniper
-    role: edge
+    role: ipe
     domain: inet-edge
+    site: west
+    tier: 7
     interfaces:
-      - name: GigabitEthernet0/0/0
-        ip: "10.10.4.6/30"
-        neighbor: fw-edge-01
+      - name: ge-0/0/0
+        ip: "10.100.14.2/30"
+        neighbor: t1fw-west-01
         speed: "40G"
-      - name: GigabitEthernet0/0/1
+      - name: ge-0/0/1
         ip: "203.0.113.1/30"
-        description: "eBGP to Lumen (AS3356)"
+        description: "eBGP to upstream (AS3356)"
         speed: "10G"
 
 boundaries:
-  - firewall: fw-east-01
-    upstream_domain: pe-east
-    downstream_domain: backbone
-  - firewall: fw-west-01
-    upstream_domain: pe-west
-    downstream_domain: backbone
-  - firewall: fw-edge-01
-    upstream_domain: backbone
+  - firewall: t2fw-east-01
+    upstream_domain: service-edge-east
+    downstream_domain: agg-backbone
+    tier: "t2"
+  - firewall: t2fw-west-01
+    upstream_domain: service-edge-west
+    downstream_domain: agg-backbone
+    tier: "t2"
+  - firewall: t1fw-east-01
+    upstream_domain: agg-backbone
     downstream_domain: inet-edge
+    tier: "t1"
+  - firewall: t1fw-west-01
+    upstream_domain: agg-backbone
+    downstream_domain: inet-edge
+    tier: "t1"

@@ -189,10 +189,12 @@
                 </div>
             </div>
             <div class="legend">
-                <div class="legend-item"><div class="legend-dot" style="background:#4CAF50"></div> PE</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#2196F3"></div> AGG/P</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#F44336"></div> Firewall</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#FF9800"></div> Edge</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#81C784"></div> DCCE</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#4CAF50"></div> DCPE</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#66BB6A"></div> SPE</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#F44336"></div> FW</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#2196F3"></div> AGG</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#FF9800"></div> IPE</div>
                 <div class="legend-item"><div class="legend-dot" style="background:#9C27B0"></div> RR</div>
             </div>
         </div>
@@ -216,15 +218,7 @@
                     font: { color: '#555', size: 10 },
                 },
                 physics: {
-                    forceAtlas2Based: {
-                        gravitationalConstant: -80,
-                        centralGravity: 0.015,
-                        springLength: 160,
-                        springConstant: 0.06,
-                        damping: 0.4
-                    },
-                    solver: 'forceAtlas2Based',
-                    stabilization: { iterations: 200 }
+                    enabled: false  // Using fixed hierarchical positions
                 },
                 groups: {
                     backbone:  { color: { background: '#1a237e', border: '#2196F3' } },
@@ -249,36 +243,46 @@
         }
 
         function loadDemoTopology() {
+            // 7-tier MPLS demo: DCCE → DCPE → SPE → T2-FW → AGG → T1-FW → IPE
+            const tier = (t, site) => ({ x: site === 'east' ? -200 : 200, y: [0,400,300,200,100,0,-100,-200][t] });
+            const e = (site) => site === 'east' ? -200 : 200;
             const nodes = [
-                { id: 'pe-nyc-01', label: 'PE-NYC-01', color: '#4CAF50', shape: 'dot', group: 'pe_zone' },
-                { id: 'pe-iad-01', label: 'PE-IAD-01', color: '#4CAF50', shape: 'dot', group: 'pe_zone' },
-                { id: 'pe-lax-01', label: 'PE-LAX-01', color: '#4CAF50', shape: 'dot', group: 'pe_zone' },
-                { id: 'pe-sfo-01', label: 'PE-SFO-01', color: '#4CAF50', shape: 'dot', group: 'pe_zone' },
-                { id: 'fw-east-01', label: 'FW-EAST-01', color: '#F44336', shape: 'triangle', group: 'firewall' },
-                { id: 'fw-west-01', label: 'FW-WEST-01', color: '#F44336', shape: 'triangle', group: 'firewall' },
-                { id: 'fw-edge-01', label: 'FW-EDGE-01', color: '#F44336', shape: 'triangle', group: 'firewall' },
-                { id: 'agg-01', label: 'AGG-01', color: '#2196F3', shape: 'diamond', group: 'backbone' },
-                { id: 'agg-02', label: 'AGG-02', color: '#2196F3', shape: 'diamond', group: 'backbone' },
-                { id: 'agg-03', label: 'AGG-03', color: '#2196F3', shape: 'diamond', group: 'backbone' },
-                { id: 'rr-01', label: 'RR-01', color: '#9C27B0', shape: 'star', group: 'backbone' },
-                { id: 'edge-01', label: 'EDGE-01', color: '#FF9800', shape: 'square', group: 'inet_edge' },
-                { id: 'edge-02', label: 'EDGE-02', color: '#FF9800', shape: 'square', group: 'inet_edge' },
+                { id: 'dcce-east-01', label: 'DCCE-EAST-01', color: '#81C784', shape: 'dot', ...tier(1,'east'), fixed: true },
+                { id: 'dcce-west-01', label: 'DCCE-WEST-01', color: '#81C784', shape: 'dot', ...tier(1,'west'), fixed: true },
+                { id: 'dcpe-east-01', label: 'DCPE-EAST-01', color: '#4CAF50', shape: 'dot', ...tier(2,'east'), fixed: true },
+                { id: 'dcpe-west-01', label: 'DCPE-WEST-01', color: '#4CAF50', shape: 'dot', ...tier(2,'west'), fixed: true },
+                { id: 'spe-east-01',  label: 'SPE-EAST-01',  color: '#66BB6A', shape: 'hexagon', ...tier(3,'east'), fixed: true },
+                { id: 'spe-west-01',  label: 'SPE-WEST-01',  color: '#66BB6A', shape: 'hexagon', ...tier(3,'west'), fixed: true },
+                { id: 't2fw-east-01', label: 'T2FW-EAST-01', color: '#EF5350', shape: 'triangle', ...tier(4,'east'), fixed: true },
+                { id: 't2fw-west-01', label: 'T2FW-WEST-01', color: '#EF5350', shape: 'triangle', ...tier(4,'west'), fixed: true },
+                { id: 'agg-east-01',  label: 'AGG-EAST-01',  color: '#2196F3', shape: 'diamond', ...tier(5,'east'), fixed: true },
+                { id: 'agg-west-01',  label: 'AGG-WEST-01',  color: '#2196F3', shape: 'diamond', ...tier(5,'west'), fixed: true },
+                { id: 'rr-core-01',   label: 'RR-CORE\n(core)', color: '#9C27B0', shape: 'star', x: 400, y: 20, fixed: true },
+                { id: 'rr-agg-01',    label: 'RR-AGG\n(agg)',   color: '#9C27B0', shape: 'star', x: 400, y: 0, fixed: true },
+                { id: 'rr-inet-01',   label: 'RR-INET\n(inet)', color: '#9C27B0', shape: 'star', x: 400, y: -20, fixed: true },
+                { id: 't1fw-east-01', label: 'T1FW-EAST-01', color: '#F44336', shape: 'triangle', ...tier(6,'east'), fixed: true },
+                { id: 't1fw-west-01', label: 'T1FW-WEST-01', color: '#F44336', shape: 'triangle', ...tier(6,'west'), fixed: true },
+                { id: 'ipe-east-01',  label: 'IPE-EAST-01',  color: '#FF9800', shape: 'square', ...tier(7,'east'), fixed: true },
+                { id: 'ipe-west-01',  label: 'IPE-WEST-01',  color: '#FF9800', shape: 'square', ...tier(7,'west'), fixed: true },
             ];
+            const c = {color:'#333'};
             const edges = [
-                { from: 'pe-nyc-01', to: 'fw-east-01', color: {color:'#333'} },
-                { from: 'pe-iad-01', to: 'fw-east-01', color: {color:'#333'} },
-                { from: 'pe-lax-01', to: 'fw-west-01', color: {color:'#333'} },
-                { from: 'pe-sfo-01', to: 'fw-west-01', color: {color:'#333'} },
-                { from: 'fw-east-01', to: 'agg-01', color: {color:'#333'}, width: 3 },
-                { from: 'fw-west-01', to: 'agg-03', color: {color:'#333'}, width: 3 },
-                { from: 'agg-01', to: 'agg-02', color: {color:'#444'}, width: 4 },
-                { from: 'agg-02', to: 'agg-03', color: {color:'#444'}, width: 4 },
-                { from: 'agg-01', to: 'agg-03', color: {color:'#444'}, width: 4 },
-                { from: 'agg-01', to: 'rr-01', color: {color:'#333'}, dashes: true },
-                { from: 'agg-02', to: 'rr-01', color: {color:'#333'}, dashes: true },
-                { from: 'agg-02', to: 'fw-edge-01', color: {color:'#333'}, width: 3 },
-                { from: 'fw-edge-01', to: 'edge-01', color: {color:'#333'} },
-                { from: 'fw-edge-01', to: 'edge-02', color: {color:'#333'} },
+                { from: 'dcce-east-01', to: 'dcpe-east-01', color: c },
+                { from: 'dcce-west-01', to: 'dcpe-west-01', color: c },
+                { from: 'dcpe-east-01', to: 'spe-east-01', color: c },
+                { from: 'dcpe-west-01', to: 'spe-west-01', color: c },
+                { from: 'spe-east-01',  to: 't2fw-east-01', color: c },
+                { from: 'spe-west-01',  to: 't2fw-west-01', color: c },
+                { from: 't2fw-east-01', to: 'agg-east-01', color: c, width: 3 },
+                { from: 't2fw-west-01', to: 'agg-west-01', color: c, width: 3 },
+                { from: 'agg-east-01',  to: 'agg-west-01', color: {color:'#444'}, width: 4 },
+                { from: 'agg-east-01',  to: 'rr-core-01', color: c, dashes: true },
+                { from: 'agg-east-01',  to: 'rr-agg-01',  color: c, dashes: true },
+                { from: 'agg-east-01',  to: 'rr-inet-01', color: c, dashes: true },
+                { from: 'agg-east-01',  to: 't1fw-east-01', color: c, width: 3 },
+                { from: 'agg-west-01',  to: 't1fw-west-01', color: c, width: 3 },
+                { from: 't1fw-east-01', to: 'ipe-east-01', color: c },
+                { from: 't1fw-west-01', to: 'ipe-west-01', color: c },
             ];
             nodesDataSet.add(nodes);
             edgesDataSet.add(edges);
@@ -334,8 +338,8 @@
                 const data = await resp.json();
                 renderBGPResults(data, prefix);
 
-                // Highlight the path through the topology: edge → fw-edge → agg → fw → pe
-                highlightEdgePath(['edge-01', 'fw-edge-01', 'agg-02', 'agg-01', 'fw-east-01', 'pe-nyc-01']);
+                // Highlight 7-tier path: IPE → T1-FW → AGG → T2-FW → SPE → DCPE → DCCE
+                highlightEdgePath(['ipe-east-01', 't1fw-east-01', 'agg-east-01', 't2fw-east-01', 'spe-east-01', 'dcpe-east-01', 'dcce-east-01']);
 
             } catch (e) {
                 resultsDiv.innerHTML = `
