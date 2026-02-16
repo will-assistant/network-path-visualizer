@@ -23,15 +23,16 @@ devices:
     role: route-server
     site: att
 
-  tdc-rs:
-    management_ip: route-server.opentransit.net
+  gtt-rs:
+    management_ip: route-server.ip.tiscali.net
     vendor: juniper
     connection: telnet
     credentials:
-      username: rviews
-      password: rviews
+      username: public
+      password: public
     role: route-server
-    site: tdc-opentransit
+    site: gtt-global
+    notes: "GTT/AS3257 — 18 peering points across US, EU, APAC. Communities encode geography."
 
   # Example internal devices (uncomment and fill in for real network)
   # core-rtr-1:
