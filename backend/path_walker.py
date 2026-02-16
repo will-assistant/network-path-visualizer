@@ -11,6 +11,7 @@ It just follows the routing table like a packet would.
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -36,6 +37,9 @@ class HopResult:
     vrf: str = ""
     plugin_labels: dict = field(default_factory=dict)
     note: str = ""
+    query_time_ms: Optional[float] = None
+    raw_output: str = ""  # populated in verbose mode
+    all_entries: list[dict] = field(default_factory=list)  # all route entries at this hop
 
 
 @dataclass
@@ -52,6 +56,7 @@ class TraceResult:
     prefix: str
     start: str
     paths: list[TracePath] = field(default_factory=list)
+    total_time_ms: Optional[float] = None
 
 
 # Type for the async function that queries a device
@@ -71,22 +76,26 @@ class PathWalker:
         collector_fn: CollectorFn,
         plugins: list[CommunityDecoderPlugin] | None = None,
         max_hops: int = 20,
+        verbose: bool = False,
     ):
         self.inventory = inventory
         self.collector_fn = collector_fn
         self.plugins = plugins or []
         self.max_hops = max_hops
+        self.verbose = verbose
 
     async def trace(self, prefix: str, start_device: str, vrf: str = "") -> TraceResult:
         """
         Trace a prefix starting from a device. Returns all paths (ECMP branches as separate paths).
         """
         result = TraceResult(prefix=prefix, start=start_device)
+        t0 = time.monotonic()
 
         # Start the recursive trace
         initial_path = TracePath()
         await self._walk(prefix, start_device, vrf, set(), initial_path, result)
 
+        result.total_time_ms = (time.monotonic() - t0) * 1000
         return result
 
     async def _walk(
@@ -122,9 +131,11 @@ class PathWalker:
         dev = self.inventory.get_device(device_name)
         role = dev.role if dev else ""
 
-        # Query the device
+        # Query the device with timing
+        t0 = time.monotonic()
         try:
             entries = await self.collector_fn(device_name, prefix, vrf)
+            query_time_ms = (time.monotonic() - t0) * 1000
         except Exception as e:
             logger.error(f"Failed to query {device_name}: {e}")
             hop = HopResult(device=device_name, role=role, note=f"Unreachable: {e}")
@@ -164,6 +175,19 @@ class PathWalker:
 
         # Build hop for this device
         hop = self._build_hop(device_name, role, best)
+        hop.query_time_ms = query_time_ms
+        # Include all entries summary for last-hop enrichment
+        hop.all_entries = [
+            {
+                "next_hop": e.next_hop,
+                "as_path": e.as_path,
+                "communities": e.communities,
+                "lp": e.local_pref,
+                "active": e.active,
+                "peer_as": e.peer_as,
+            }
+            for e in entries
+        ]
         current_path.hops.append(hop)
 
         # Gather all next-hops for ECMP

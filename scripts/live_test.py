@@ -1,106 +1,97 @@
 #!/usr/bin/env python3
 """
-Live test — connect to AT&T route server and parse real BGP output.
+Live test — connect to BOTH route servers (AT&T + GTT) and validate parsing.
 
 Usage: python3 scripts/live_test.py [prefix]
 Default prefix: 8.8.8.0/24
 """
 
 import sys
-import pexpect
+import asyncio
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
-from collectors.junos_collector import JunosParser
+from collectors.junos_collector import JunosCollector
 
-HOST = "route-server.ip.att.net"
-USERNAME = "rviews"
-PASSWORD = "rviews"
+SERVERS = [
+    ("ATT", "route-server.ip.att.net", "rviews", "rviews"),
+    ("GTT", "route-server.ip.tiscali.net", "public", "public"),
+]
 DEFAULT_PREFIX = "8.8.8.0/24"
 
 
-def collect_output(prefix: str) -> str:
-    """Connect to AT&T RS via telnet and collect route detail."""
-    prompt = r"\r\n\S+> "
-    print(f"Connecting to {HOST}...")
-    child = pexpect.spawn(f"telnet {HOST}", timeout=60, maxread=2000000, encoding="utf-8")
-
-    child.expect("login:", timeout=30)
-    child.sendline(USERNAME)
-    child.expect("Password:", timeout=10)
-    child.sendline(PASSWORD)
-    child.expect(prompt, timeout=30)
-    print("Logged in. Disabling paging...")
-
-    child.sendline("set cli screen-length 0")
-    child.expect(prompt, timeout=10)
-
-    cmd = f"show route {prefix} detail | no-more"
-    print(f"Running: {cmd}")
-    child.sendline(cmd)
-    child.expect(prompt, timeout=180)
-
-    output = child.before
-    child.sendline("exit")
-    child.close()
-    return output
-
-
-def main():
-    prefix = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PREFIX
-
-    output = collect_output(prefix)
+async def test_server(name: str, host: str, user: str, pw: str, prefix: str) -> bool:
+    """Test one route server. Returns True if all validations pass."""
     print(f"\n{'='*60}")
-    print(f"Raw output: {len(output)} chars")
-    print(f"{'='*60}\n")
+    print(f"  {name} — {host}")
+    print(f"{'='*60}")
 
-    entries = JunosParser.parse(output, prefix)
-    print(f"Parsed {len(entries)} RouteEntry objects:\n")
+    collector = JunosCollector(host=host, username=user, password=pw, connection="telnet")
+    entries = await collector.get_route(prefix)
 
-    active_count = 0
+    active = [e for e in entries if e.active]
+    print(f"\nParsed {len(entries)} entries, {len(active)} active\n")
+
     for i, e in enumerate(entries):
-        status = "★ ACTIVE" if e.active else "  inactive"
-        if e.active:
-            active_count += 1
-        print(f"  [{i+1}] {status}")
-        print(f"      Prefix:    {e.prefix}")
-        print(f"      Next-hop:  {e.next_hop} (source: {e.source})")
-        print(f"      AS Path:   {' '.join(e.as_path)}")
-        print(f"      LP:        {e.local_pref}")
-        print(f"      Communities: {' '.join(e.communities)}")
-        print(f"      Peer AS:   {e.peer_as}")
-        print(f"      Router ID: {e.router_id}")
-        print(f"      Age:       {e.age}")
+        tag = "★ ACTIVE" if e.active else "  inactive"
+        print(f"  [{i+1}] {tag}")
+        print(f"      Next-hop:     {e.next_hop}")
+        print(f"      AS Path:      {' '.join(e.as_path)}")
+        print(f"      LP:           {e.local_pref}")
+        print(f"      Communities:  {' '.join(e.communities)}")
+        print(f"      Peer AS:      {e.peer_as}")
+        print(f"      Router ID:    {e.router_id}")
         if e.inactive_reason:
-            print(f"      Reason:    {e.inactive_reason}")
+            print(f"      Reason:       {e.inactive_reason}")
         print()
 
-    print(f"Summary: {len(entries)} entries, {active_count} active")
-
-    # Validation
+    # Validate
     errors = []
     if not entries:
         errors.append("No entries parsed!")
-    else:
-        if active_count != 1:
-            errors.append(f"Expected 1 active entry, got {active_count}")
-        for e in entries:
-            if not e.next_hop:
-                errors.append(f"Entry missing next_hop")
-            if not e.as_path:
-                errors.append(f"Entry for {e.next_hop} missing AS path")
-            if e.local_pref is None:
-                errors.append(f"Entry for {e.next_hop} missing local_pref")
+    if len(active) != 1:
+        errors.append(f"Expected 1 active entry, got {len(active)}")
+    for e in entries:
+        if not e.next_hop:
+            errors.append("Entry missing next_hop")
+        if not e.as_path:
+            errors.append(f"Entry {e.next_hop} missing AS path")
+        if e.local_pref is None:
+            errors.append(f"Entry {e.next_hop} missing local_pref")
+        if not e.communities:
+            errors.append(f"Entry {e.next_hop} missing communities")
 
     if errors:
-        print("\n⚠ VALIDATION ISSUES:")
+        print(f"⚠ {name} VALIDATION ISSUES:")
         for err in errors:
             print(f"  - {err}")
-        return 1
+        return False
     else:
-        print("\n✓ All validations passed!")
-        return 0
+        print(f"✓ {name} — all validations passed!")
+        return True
+
+
+async def main():
+    prefix = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PREFIX
+    print(f"Testing prefix: {prefix}")
+
+    results = []
+    for name, host, user, pw in SERVERS:
+        ok = await test_server(name, host, user, pw, prefix)
+        results.append((name, ok))
+
+    print(f"\n{'='*60}")
+    print("  SUMMARY")
+    print(f"{'='*60}")
+    all_ok = True
+    for name, ok in results:
+        status = "✓ PASS" if ok else "✗ FAIL"
+        print(f"  {name}: {status}")
+        if not ok:
+            all_ok = False
+
+    return 0 if all_ok else 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(asyncio.run(main()))

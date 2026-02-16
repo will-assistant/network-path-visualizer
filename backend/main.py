@@ -149,6 +149,7 @@ def _serialize_result(result: TraceResult) -> dict:
     return {
         "prefix": result.prefix,
         "start": result.start,
+        "total_time_ms": result.total_time_ms,
         "paths": [
             {
                 "hops": [
@@ -165,6 +166,8 @@ def _serialize_result(result: TraceResult) -> dict:
                         "vrf": h.vrf,
                         "plugin_labels": h.plugin_labels,
                         "note": h.note,
+                        "query_time_ms": h.query_time_ms,
+                        "all_entries": h.all_entries,
                     }
                     for h in p.hops
                 ],

@@ -1,0 +1,181 @@
+ show route 8.8.8.0/24 detail | no-morepublic@route-server.as3257.net-re1> ...etail | no-more                       
+
+inet.0: 1022743 destinations, 8181879 routes (1022742 active, 0 holddown, 1 hidden)
+8.8.8.0/24 (8 entries, 0 announced)
+        *BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x4f973fc
+                Next-hop reference count: 1022733
+                Source: 213.200.87.89
+                Next hop type: Router, Next hop index: 587
+                Next hop: 141.136.111.13 via xe-1/0/0.0, selected
+                Session Id: 0x181
+                Protocol next hop: 213.200.87.89
+                Indirect next hop: 0x86ef29330 - INH Session ID: 0x0
+                State: <Active NotInstall Ext>
+                Local AS: 65534 Peer AS:  3257
+                Age: 2w6d 14:06:26 	Metric: 0 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3257.213.200.87.89
+                AS path: 3257 15169 I
+                AS path: Recorded
+                Communities: 3257:50001 3257:53100 3257:53101
+                Accepted
+                Localpref: 100
+                Router ID: 213.200.87.89
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x4f9799c
+                Next-hop reference count: 1022732
+                Source: 213.200.87.103
+                Next hop type: Router, Next hop index: 587
+                Next hop: 141.136.111.13 via xe-1/0/0.0, selected
+                Session Id: 0x181
+                Protocol next hop: 213.200.87.103
+                Indirect next hop: 0x86ef29b28 - INH Session ID: 0x0
+                State: <NotInstall Ext>
+                Inactive reason: Active preferred
+                Local AS: 65534 Peer AS:  3257
+                Age: 4d 13:51:59 	Metric: 0 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3257.213.200.87.103
+                AS path: 3257 15169 I
+                AS path: Recorded
+                Communities: 3257:10055 3257:50001 3257:54400 3257:54401
+                Accepted
+                Localpref: 100
+                Router ID: 213.200.87.103
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x4f97abc
+                Next-hop reference count: 1022733
+                Source: 213.200.87.119
+                Next hop type: Router, Next hop index: 587
+                Next hop: 141.136.111.13 via xe-1/0/0.0, selected
+                Session Id: 0x181
+                Protocol next hop: 213.200.87.119
+                Indirect next hop: 0x86ef29cc0 - INH Session ID: 0x0
+                State: <NotInstall Ext>
+                Inactive reason: Active preferred
+                Local AS: 65534 Peer AS:  3257
+                Age: 2w2d 18:15:35 	Metric: 0 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3257.213.200.87.119
+                AS path: 3257 15169 I
+                AS path: Recorded
+                Communities: 3257:50001 3257:54900 3257:54901
+                Accepted
+                Localpref: 100
+                Router ID: 213.200.87.119
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x4f9751c
+                Next-hop reference count: 1022734
+                Source: 213.200.87.137
+                Next hop type: Router, Next hop index: 587
+                Next hop: 141.136.111.13 via xe-1/0/0.0, selected
+                Session Id: 0x181
+                Protocol next hop: 213.200.87.137
+                Indirect next hop: 0x86ef294c8 - INH Session ID: 0x0
+                State: <NotInstall Ext>
+                Inactive reason: Active preferred
+                Local AS: 65534 Peer AS:  3257
+                Age: 2w6d 14:06:18 	Metric: 0 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3257.213.200.87.137
+                AS path: 3257 15169 I
+                AS path: Recorded
+                Communities: 3257:50003 3257:58100 3257:58101
+                Accepted
+                Localpref: 100
+                Router ID: 213.200.87.137
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x4f9787c
+                Next-hop reference count: 1022734
+                Source: 213.200.87.166
+                Next hop type: Router, Next hop index: 587
+                Next hop: 141.136.111.13 via xe-1/0/0.0, selected
+                Session Id: 0x181
+                Protocol next hop: 213.200.87.166
+                Indirect next hop: 0x86ef29990 - INH Session ID: 0x0
+                State: <NotInstall Ext>
+                Inactive reason: Active preferred
+                Local AS: 65534 Peer AS:  3257
+                Age: 2w6d 14:06:09 	Metric: 0 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3257.213.200.87.166
+                AS path: 3257 15169 I
+                AS path: Recorded
+                Communities: 3257:50003 3257:56700 3257:56701
+                Accepted
+                Localpref: 100
+                Router ID: 213.200.87.166
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x4f9775c
+                Next-hop reference count: 1022732
+                Source: 213.200.87.170
+                Next hop type: Router, Next hop index: 587
+                Next hop: 141.136.111.13 via xe-1/0/0.0, selected
+                Session Id: 0x181
+                Protocol next hop: 213.200.87.170
+                Indirect next hop: 0x86ef297f8 - INH Session ID: 0x0
+                State: <NotInstall Ext>
+                Inactive reason: Active preferred
+                Local AS: 65534 Peer AS:  3257
+                Age: 2w6d 14:05:48 	Metric: 0 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3257.213.200.87.170
+                AS path: 3257 15169 I
+                AS path: Recorded
+                Communities: 3257:50002 3257:51300 3257:51301
+                Accepted
+                Localpref: 100
+                Router ID: 213.200.87.170
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x4f9763c
+                Next-hop reference count: 1022733
+                Source: 213.200.87.21
+                Next hop type: Router, Next hop index: 587
+                Next hop: 141.136.111.13 via xe-1/0/0.0, selected
+                Session Id: 0x181
+                Protocol next hop: 213.200.87.21
+                Indirect next hop: 0x86ef29660 - INH Session ID: 0x0
+                State: <NotInstall Ext>
+                Inactive reason: Always Compare MED
+                Local AS: 65534 Peer AS:  3257
+                Age: 2w6d 14:05:43 	Metric: 20 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3257.213.200.87.21
+                AS path: 3257 15169 I
+                AS path: Recorded
+                Communities: 3257:50002 3257:51200 3257:51201
+                Accepted
+                Localpref: 100
+                Router ID: 213.200.87.21
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x4f972dc
+                Next-hop reference count: 1022732
+                Source: 213.200.87.23
+                Next hop type: Router, Next hop index: 587
+                Next hop: 141.136.111.13 via xe-1/0/0.0, selected
+                Session Id: 0x181
+                Protocol next hop: 213.200.87.23
+                Indirect next hop: 0x86ef29198 - INH Session ID: 0x0
+                State: <NotInstall Ext>
+                Inactive reason: Always Compare MED
+                Local AS: 65534 Peer AS:  3257
+                Age: 1w3d 2:13:37 	Metric: 93 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3257.213.200.87.23
+                AS path: 3257 15169 I
+                AS path: Recorded
+                Communities: 3257:50002 3257:51400 3257:51401
+                Accepted
+                Localpref: 100
+                Router ID: 213.200.87.23
+
+{master}

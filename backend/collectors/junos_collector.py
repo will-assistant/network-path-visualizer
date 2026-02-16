@@ -127,11 +127,17 @@ class JunosParser:
 
             m = re.match(r'AS path:\s+(.+)', s)
             if m:
-                parts = m.group(1).strip().split()
-                # Last token is origin indicator (I/E/?)
-                if parts and parts[-1] in ('I', 'E', '?'):
-                    parts.pop()
-                entry.as_path = parts
+                raw = m.group(1).strip()
+                # Skip "Recorded" / "Aggregator" metadata lines
+                if raw in ('Recorded', 'Aggregator'):
+                    continue
+                # Only set if not already parsed (first AS path line wins)
+                if not entry.as_path:
+                    parts = raw.split()
+                    # Last token is origin indicator (I/E/?)
+                    if parts and parts[-1] in ('I', 'E', '?'):
+                        parts.pop()
+                    entry.as_path = parts
                 continue
 
             m = re.match(r'Communities:\s+(.+)', s)
@@ -171,7 +177,7 @@ class JunosCollector:
         """Query device for a route and return normalized RouteEntry list."""
         import pexpect
 
-        # Prompt must be at start of line to avoid matching <Active Ext> etc.
+        # Prompt pattern — matches both "user@host>" and after "{master}" line
         prompt = r'\r\n\S+> '
 
         try:
@@ -182,11 +188,17 @@ class JunosCollector:
                 encoding='utf-8',
             )
 
-            child.expect('login:', timeout=30)
+            # Handle login — both "login:" and "Password:" / "password:" styles
+            child.expect(['login:', 'Username:'], timeout=30)
             child.sendline(self.username)
-            child.expect('Password:', timeout=10)
+            child.expect(['[Pp]assword:'], timeout=10)
             child.sendline(self.password)
-            child.expect(prompt, timeout=30)
+
+            # Wait for prompt — may have {master} before the actual prompt (GTT style)
+            i = child.expect([prompt, r'\{master\}'], timeout=30)
+            if i == 1:
+                # Got {master}, wait for the real prompt after it
+                child.expect(prompt, timeout=10)
 
             # Disable paging
             child.sendline('set cli screen-length 0')
@@ -208,6 +220,17 @@ class JunosCollector:
             logger.info(f"[{self.host}] {prefix}: {len(entries)} entries")
             return entries
 
+        except pexpect.TIMEOUT:
+            logger.error(f"[{self.host}] timeout after 30s")
+            try:
+                child.close()
+            except Exception:
+                pass
+            raise TimeoutError(f"Device {self.host} did not respond within timeout")
         except Exception as e:
             logger.error(f"[{self.host}] query failed: {e}")
+            try:
+                child.close()
+            except Exception:
+                pass
             raise
