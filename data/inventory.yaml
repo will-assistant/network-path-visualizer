@@ -1,0 +1,257 @@
+# Network Path Visualizer — Mock Inventory
+# Models Jeremy's network: PE → FW → AGG backbone → FW → Internet Edge
+
+domains:
+  pe-east:
+    type: pe_zone
+    protocol: "isis+mpls"
+  pe-west:
+    type: pe_zone
+    protocol: "isis+mpls"
+  backbone:
+    type: backbone
+    protocol: "isis+mpls"
+  inet-edge:
+    type: inet_edge
+    protocol: "ebgp"
+
+routers:
+  # PE Zone - East
+  pe-nyc-01:
+    mgmt_ip: "10.0.1.1"
+    vendor: juniper
+    role: pe
+    domain: pe-east
+    interfaces:
+      - name: ge-0/0/0
+        ip: "10.10.1.1/30"
+        neighbor: fw-east-01
+        speed: "10G"
+      - name: ge-0/0/1
+        ip: "10.10.1.5/30"
+        neighbor: pe-iad-01
+        speed: "10G"
+
+  pe-iad-01:
+    mgmt_ip: "10.0.1.2"
+    vendor: juniper
+    role: pe
+    domain: pe-east
+    interfaces:
+      - name: ge-0/0/0
+        ip: "10.10.1.9/30"
+        neighbor: fw-east-01
+        speed: "10G"
+      - name: ge-0/0/1
+        ip: "10.10.1.6/30"
+        neighbor: pe-nyc-01
+        speed: "10G"
+
+  # PE Zone - West
+  pe-lax-01:
+    mgmt_ip: "10.0.2.1"
+    vendor: juniper
+    role: pe
+    domain: pe-west
+    interfaces:
+      - name: ge-0/0/0
+        ip: "10.10.2.1/30"
+        neighbor: fw-west-01
+        speed: "10G"
+
+  pe-sfo-01:
+    mgmt_ip: "10.0.2.2"
+    vendor: juniper
+    role: pe
+    domain: pe-west
+    interfaces:
+      - name: ge-0/0/0
+        ip: "10.10.2.5/30"
+        neighbor: fw-west-01
+        speed: "10G"
+
+  # Firewalls - Domain boundaries
+  fw-east-01:
+    mgmt_ip: "10.0.3.1"
+    vendor: palo_alto
+    role: firewall
+    domain: backbone
+    interfaces:
+      - name: ethernet1/1
+        ip: "10.10.1.2/30"
+        neighbor: pe-nyc-01
+        speed: "10G"
+      - name: ethernet1/2
+        ip: "10.10.1.10/30"
+        neighbor: pe-iad-01
+        speed: "10G"
+      - name: ethernet1/3
+        ip: "10.10.3.1/30"
+        neighbor: agg-01
+        speed: "40G"
+
+  fw-west-01:
+    mgmt_ip: "10.0.3.2"
+    vendor: palo_alto
+    role: firewall
+    domain: backbone
+    interfaces:
+      - name: ethernet1/1
+        ip: "10.10.2.2/30"
+        neighbor: pe-lax-01
+        speed: "10G"
+      - name: ethernet1/2
+        ip: "10.10.2.6/30"
+        neighbor: pe-sfo-01
+        speed: "10G"
+      - name: ethernet1/3
+        ip: "10.10.3.5/30"
+        neighbor: agg-03
+        speed: "40G"
+
+  fw-edge-01:
+    mgmt_ip: "10.0.3.3"
+    vendor: fortinet
+    role: firewall
+    domain: backbone
+    interfaces:
+      - name: port1
+        ip: "10.10.3.9/30"
+        neighbor: agg-02
+        speed: "40G"
+      - name: port2
+        ip: "10.10.4.1/30"
+        neighbor: edge-01
+        speed: "40G"
+      - name: port3
+        ip: "10.10.4.5/30"
+        neighbor: edge-02
+        speed: "40G"
+
+  # AGG Backbone
+  agg-01:
+    mgmt_ip: "10.0.4.1"
+    vendor: juniper
+    role: agg
+    domain: backbone
+    interfaces:
+      - name: et-0/0/0
+        ip: "10.10.3.2/30"
+        neighbor: fw-east-01
+        speed: "40G"
+      - name: et-0/0/1
+        ip: "10.10.5.1/30"
+        neighbor: agg-02
+        speed: "100G"
+      - name: et-0/0/2
+        ip: "10.10.5.5/30"
+        neighbor: agg-03
+        speed: "100G"
+      - name: lo0
+        ip: "10.0.100.1/32"
+        speed: ""
+
+  agg-02:
+    mgmt_ip: "10.0.4.2"
+    vendor: juniper
+    role: agg
+    domain: backbone
+    interfaces:
+      - name: et-0/0/0
+        ip: "10.10.5.2/30"
+        neighbor: agg-01
+        speed: "100G"
+      - name: et-0/0/1
+        ip: "10.10.5.9/30"
+        neighbor: agg-03
+        speed: "100G"
+      - name: et-0/0/2
+        ip: "10.10.3.10/30"
+        neighbor: fw-edge-01
+        speed: "40G"
+      - name: lo0
+        ip: "10.0.100.2/32"
+        speed: ""
+
+  agg-03:
+    mgmt_ip: "10.0.4.3"
+    vendor: juniper
+    role: agg
+    domain: backbone
+    interfaces:
+      - name: et-0/0/0
+        ip: "10.10.3.6/30"
+        neighbor: fw-west-01
+        speed: "40G"
+      - name: et-0/0/1
+        ip: "10.10.5.6/30"
+        neighbor: agg-01
+        speed: "100G"
+      - name: et-0/0/2
+        ip: "10.10.5.10/30"
+        neighbor: agg-02
+        speed: "100G"
+      - name: lo0
+        ip: "10.0.100.3/32"
+        speed: ""
+
+  # Route Reflector
+  rr-01:
+    mgmt_ip: "10.0.5.1"
+    vendor: juniper
+    role: rr
+    domain: backbone
+    interfaces:
+      - name: lo0
+        ip: "10.0.200.1/32"
+        speed: ""
+      - name: et-0/0/0
+        ip: "10.10.6.1/30"
+        neighbor: agg-01
+        speed: "10G"
+      - name: et-0/0/1
+        ip: "10.10.6.5/30"
+        neighbor: agg-02
+        speed: "10G"
+
+  # Internet Edge
+  edge-01:
+    mgmt_ip: "10.0.6.1"
+    vendor: cisco_xr
+    role: edge
+    domain: inet-edge
+    interfaces:
+      - name: GigabitEthernet0/0/0
+        ip: "10.10.4.2/30"
+        neighbor: fw-edge-01
+        speed: "40G"
+      - name: GigabitEthernet0/0/1
+        ip: "198.51.100.1/30"
+        description: "eBGP to AT&T (AS7018)"
+        speed: "10G"
+
+  edge-02:
+    mgmt_ip: "10.0.6.2"
+    vendor: cisco_xr
+    role: edge
+    domain: inet-edge
+    interfaces:
+      - name: GigabitEthernet0/0/0
+        ip: "10.10.4.6/30"
+        neighbor: fw-edge-01
+        speed: "40G"
+      - name: GigabitEthernet0/0/1
+        ip: "203.0.113.1/30"
+        description: "eBGP to Lumen (AS3356)"
+        speed: "10G"
+
+boundaries:
+  - firewall: fw-east-01
+    upstream_domain: pe-east
+    downstream_domain: backbone
+  - firewall: fw-west-01
+    upstream_domain: pe-west
+    downstream_domain: backbone
+  - firewall: fw-edge-01
+    upstream_domain: backbone
+    downstream_domain: inet-edge

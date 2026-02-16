@@ -8,6 +8,7 @@ pydantic>=2.5.0
 ansible>=2.15.0
 ncclient>=0.6.15
 netmiko>=4.3.0
+pexpect>=4.9.0
 napalm>=4.1.0
 xmltodict>=0.13.0
 jmespath>=1.0.1

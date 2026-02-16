@@ -7,13 +7,11 @@
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: #0a0a0f;
             color: #e0e0e0;
         }
-        
         .header {
             background: #111118;
             border-bottom: 1px solid #222;
@@ -22,22 +20,14 @@
             align-items: center;
             gap: 24px;
         }
-        
-        .header h1 {
-            font-size: 18px;
-            font-weight: 600;
-            color: #fff;
-        }
-        
+        .header h1 { font-size: 18px; font-weight: 600; color: #fff; }
         .header h1 span { color: #4CAF50; }
-        
         .search-container {
             flex: 1;
-            max-width: 800px;
+            max-width: 600px;
             display: flex;
             gap: 8px;
         }
-        
         .search-input {
             flex: 1;
             padding: 10px 16px;
@@ -48,14 +38,8 @@
             font-size: 14px;
             font-family: 'SF Mono', 'Fira Code', monospace;
         }
-        
-        .search-input:focus {
-            outline: none;
-            border-color: #4CAF50;
-        }
-        
+        .search-input:focus { outline: none; border-color: #4CAF50; }
         .search-input::placeholder { color: #555; }
-        
         .btn {
             padding: 10px 20px;
             border: none;
@@ -65,41 +49,21 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        
-        .btn-primary {
-            background: #4CAF50;
-            color: #fff;
-        }
-        
+        .btn-primary { background: #4CAF50; color: #fff; }
         .btn-primary:hover { background: #45a049; }
-        
-        .btn-secondary {
-            background: #1a1a24;
-            color: #aaa;
-            border: 1px solid #333;
-        }
-        
-        .btn-secondary:hover { background: #222; }
-        
+        .btn-primary:disabled { background: #333; color: #666; cursor: not-allowed; }
         .main {
             display: grid;
-            grid-template-columns: 1fr 360px;
+            grid-template-columns: 1fr 420px;
             height: calc(100vh - 65px);
         }
-        
-        #topology {
-            width: 100%;
-            height: 100%;
-            background: #0a0a0f;
-        }
-        
+        #topology { width: 100%; height: 100%; background: #0a0a0f; }
         .sidebar {
             background: #111118;
             border-left: 1px solid #222;
             overflow-y: auto;
             padding: 16px;
         }
-        
         .sidebar h2 {
             font-size: 14px;
             font-weight: 600;
@@ -108,40 +72,21 @@
             letter-spacing: 0.5px;
             margin-bottom: 12px;
         }
-        
         .result-card {
             background: #1a1a24;
             border: 1px solid #222;
             border-radius: 8px;
             padding: 12px;
             margin-bottom: 8px;
+            cursor: pointer;
+            transition: border-color 0.2s;
         }
-        
-        .result-card.origin {
-            border-left: 3px solid #4CAF50;
-        }
-        
-        .result-card.warning {
-            border-left: 3px solid #FF9800;
-        }
-        
-        .result-card.error {
-            border-left: 3px solid #F44336;
-        }
-        
-        .result-card h3 {
-            font-size: 13px;
-            font-weight: 600;
-            color: #fff;
-            margin-bottom: 6px;
-        }
-        
-        .result-card p {
-            font-size: 12px;
-            color: #888;
-            line-height: 1.5;
-        }
-        
+        .result-card:hover { border-color: #444; }
+        .result-card.active-path { border-left: 3px solid #4CAF50; }
+        .result-card.inactive-path { border-left: 3px solid #555; }
+        .result-card.selected { border-color: #4CAF50; background: #1a2a1a; }
+        .result-card h3 { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+        .result-card p { font-size: 12px; color: #888; line-height: 1.5; }
         .result-card code {
             font-family: 'SF Mono', 'Fira Code', monospace;
             background: #0a0a0f;
@@ -150,215 +95,136 @@
             font-size: 11px;
             color: #4CAF50;
         }
-        
-        .path-hop {
+        .path-detail { margin-top: 8px; }
+        .path-detail .field {
             display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 0;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-size: 11px;
             border-bottom: 1px solid #1a1a24;
         }
-        
-        .path-hop:last-child { border-bottom: none; }
-        
-        .hop-seq {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: #222;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            font-weight: 600;
-            color: #4CAF50;
-            flex-shrink: 0;
-        }
-        
-        .hop-info { flex: 1; }
-        .hop-name { font-size: 12px; font-weight: 600; color: #fff; }
-        .hop-detail { font-size: 11px; color: #666; }
-        
-        .hop-label {
-            font-family: monospace;
+        .path-detail .field .label { color: #666; }
+        .path-detail .field .value { color: #ccc; font-family: monospace; font-size: 11px; }
+        .city-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
             font-size: 10px;
-            color: #FF9800;
-            background: #1a1a0a;
+            font-weight: 600;
+            background: #1a2a3a;
+            color: #4fc3f7;
+            margin-top: 4px;
+        }
+        .active-tag {
+            display: inline-block;
             padding: 2px 6px;
             border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
         }
-        
-        .util-bar {
-            width: 40px;
-            height: 6px;
-            background: #222;
-            border-radius: 3px;
-            overflow: hidden;
+        .active-tag.best { background: #1b3a1b; color: #4CAF50; }
+        .active-tag.notbest { background: #2a2a1a; color: #888; }
+        .summary-bar {
+            background: #1a1a24;
+            border: 1px solid #222;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
         }
-        
-        .util-fill {
-            height: 100%;
-            border-radius: 3px;
-            transition: width 0.3s;
-        }
-        
-        .util-green { background: #4CAF50; }
-        .util-yellow { background: #FF9800; }
-        .util-red { background: #F44336; }
-        
+        .summary-bar .stat .num { font-size: 24px; font-weight: 700; color: #4CAF50; }
+        .summary-bar .stat .lbl { font-size: 10px; color: #666; text-transform: uppercase; }
         .legend {
             display: flex;
             gap: 16px;
             padding: 12px;
             margin-top: 12px;
+            flex-wrap: wrap;
         }
-        
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 11px;
-            color: #666;
-        }
-        
-        .legend-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-        
-        .status-bar {
-            padding: 8px 16px;
-            background: #111118;
-            border-top: 1px solid #222;
-            font-size: 12px;
-            color: #555;
-            display: flex;
-            justify-content: space-between;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #444;
-        }
-        
-        .empty-state h3 {
-            font-size: 16px;
-            margin-bottom: 8px;
-            color: #555;
-        }
-        
+        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #666; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #444; }
+        .empty-state h3 { font-size: 16px; margin-bottom: 8px; color: #555; }
         .empty-state p { font-size: 13px; }
-        
-        .mode-toggle {
-            display: flex;
-            gap: 4px;
-            background: #1a1a24;
-            border-radius: 6px;
-            padding: 2px;
+        .loading { text-align: center; padding: 40px; }
+        .loading .spinner {
+            width: 32px; height: 32px; border: 3px solid #333;
+            border-top-color: #4CAF50; border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin: 0 auto 12px;
         }
-        
-        .mode-btn {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            background: transparent;
-            color: #666;
-            font-size: 12px;
-            cursor: pointer;
-        }
-        
-        .mode-btn.active {
-            background: #4CAF50;
-            color: #fff;
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .comm-list { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+        .comm-tag {
+            font-size: 10px; padding: 1px 5px; border-radius: 3px;
+            background: #222; color: #aaa; font-family: monospace;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <h1><span>⬡</span> Network Path Visualizer</h1>
-        
         <div class="search-container">
-            <input type="text" class="search-input" id="sourceInput" 
-                   placeholder="Source IP or prefix (e.g., 10.45.12.0/24)">
-            <input type="text" class="search-input" id="destInput" 
-                   placeholder="Destination (optional)">
-            <button class="btn btn-primary" onclick="trace()">Trace</button>
-        </div>
-        
-        <div class="mode-toggle">
-            <button class="mode-btn active" onclick="setMode('origin')">Origin</button>
-            <button class="mode-btn" onclick="setMode('flow')">Flow</button>
-            <button class="mode-btn" onclick="setMode('simulate')">Simulate</button>
+            <input type="text" class="search-input" id="prefixInput"
+                   placeholder="Enter prefix (e.g., 8.8.8.0/24, 1.1.1.0/24)" value="8.8.8.0/24">
+            <button class="btn btn-primary" id="traceBtn" onclick="trace()">Trace</button>
         </div>
     </div>
-    
+
     <div class="main">
         <div id="topology"></div>
-        
         <div class="sidebar">
             <div id="results">
                 <div class="empty-state">
                     <h3>Enter a prefix to trace</h3>
-                    <p>Type an IP address or prefix to find its origination point and all forwarding paths through the network.</p>
+                    <p>Query the AT&T route server for all BGP paths to a prefix.
+                    See active/inactive paths, AS-paths, communities, and next-hop cities.</p>
                     <br>
                     <p style="color: #4CAF50; font-family: monospace;">
-                        10.45.12.0/24<br>
-                        8.8.8.0/24<br>
-                        192.168.1.0/24 → 10.0.0.0/8
+                        8.8.8.0/24 — Google DNS (16 paths)<br>
+                        1.1.1.0/24 — Cloudflare<br>
+                        13.107.42.0/24 — Microsoft
                     </p>
                 </div>
             </div>
-            
             <div class="legend">
-                <div class="legend-item">
-                    <div class="legend-dot" style="background:#4CAF50"></div> PE
-                </div>
-                <div class="legend-item">
-                    <div class="legend-dot" style="background:#2196F3"></div> AGG/P
-                </div>
-                <div class="legend-item">
-                    <div class="legend-dot" style="background:#F44336; clip-path: polygon(50% 0%, 0% 100%, 100% 100%)"></div> Firewall
-                </div>
-                <div class="legend-item">
-                    <div class="legend-dot" style="background:#FF9800"></div> Edge
-                </div>
-                <div class="legend-item">
-                    <div class="legend-dot" style="background:#9C27B0"></div> RR
-                </div>
+                <div class="legend-item"><div class="legend-dot" style="background:#4CAF50"></div> PE</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#2196F3"></div> AGG/P</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#F44336"></div> Firewall</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#FF9800"></div> Edge</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#9C27B0"></div> RR</div>
             </div>
         </div>
     </div>
 
     <script>
-        // Initialize vis.js network
         const container = document.getElementById('topology');
         let network = null;
-        let currentMode = 'origin';
-        
-        // Initialize empty topology
+        let nodesDataSet = null;
+        let edgesDataSet = null;
+
         function initTopology() {
             const options = {
                 nodes: {
-                    font: { color: '#ccc', size: 12 },
+                    font: { color: '#ccc', size: 12, face: 'monospace' },
                     borderWidth: 2,
-                    shadow: true
+                    shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 10 }
                 },
                 edges: {
                     smooth: { type: 'continuous' },
                     font: { color: '#555', size: 10 },
-                    arrows: { to: { enabled: true, scaleFactor: 0.5 } }
                 },
                 physics: {
                     forceAtlas2Based: {
-                        gravitationalConstant: -50,
-                        centralGravity: 0.01,
-                        springLength: 150,
-                        springConstant: 0.08
+                        gravitationalConstant: -80,
+                        centralGravity: 0.015,
+                        springLength: 160,
+                        springConstant: 0.06,
+                        damping: 0.4
                     },
                     solver: 'forceAtlas2Based',
-                    stabilization: { iterations: 150 }
+                    stabilization: { iterations: 200 }
                 },
                 groups: {
                     backbone:  { color: { background: '#1a237e', border: '#2196F3' } },
@@ -366,219 +232,186 @@
                     inet_edge: { color: { background: '#e65100', border: '#FF9800' } },
                     firewall:  { color: { background: '#b71c1c', border: '#F44336' } }
                 },
-                interaction: {
-                    hover: true,
-                    tooltipDelay: 200
-                }
+                interaction: { hover: true, tooltipDelay: 200 }
             };
-            
-            network = new vis.Network(container, { nodes: [], edges: [] }, options);
-            
-            // Load topology from backend
+
+            nodesDataSet = new vis.DataSet([]);
+            edgesDataSet = new vis.DataSet([]);
+            network = new vis.Network(container, { nodes: nodesDataSet, edges: edgesDataSet }, options);
+
             fetch('/api/topology')
                 .then(r => r.json())
                 .then(data => {
-                    network.setData({
-                        nodes: new vis.DataSet(data.nodes),
-                        edges: new vis.DataSet(data.edges)
-                    });
+                    nodesDataSet.add(data.nodes);
+                    edgesDataSet.add(data.edges);
                 })
-                .catch(() => {
-                    // Demo mode — show sample topology
-                    loadDemoTopology();
-                });
+                .catch(() => loadDemoTopology());
         }
-        
+
         function loadDemoTopology() {
-            const nodes = new vis.DataSet([
+            const nodes = [
                 { id: 'pe-nyc-01', label: 'PE-NYC-01', color: '#4CAF50', shape: 'dot', group: 'pe_zone' },
                 { id: 'pe-iad-01', label: 'PE-IAD-01', color: '#4CAF50', shape: 'dot', group: 'pe_zone' },
                 { id: 'pe-lax-01', label: 'PE-LAX-01', color: '#4CAF50', shape: 'dot', group: 'pe_zone' },
-                { id: 'fw-east', label: 'FW-EAST', color: '#F44336', shape: 'triangle', group: 'firewall' },
-                { id: 'fw-west', label: 'FW-WEST', color: '#F44336', shape: 'triangle', group: 'firewall' },
-                { id: 'fw-edge', label: 'FW-EDGE', color: '#F44336', shape: 'triangle', group: 'firewall' },
+                { id: 'pe-sfo-01', label: 'PE-SFO-01', color: '#4CAF50', shape: 'dot', group: 'pe_zone' },
+                { id: 'fw-east-01', label: 'FW-EAST-01', color: '#F44336', shape: 'triangle', group: 'firewall' },
+                { id: 'fw-west-01', label: 'FW-WEST-01', color: '#F44336', shape: 'triangle', group: 'firewall' },
+                { id: 'fw-edge-01', label: 'FW-EDGE-01', color: '#F44336', shape: 'triangle', group: 'firewall' },
                 { id: 'agg-01', label: 'AGG-01', color: '#2196F3', shape: 'diamond', group: 'backbone' },
                 { id: 'agg-02', label: 'AGG-02', color: '#2196F3', shape: 'diamond', group: 'backbone' },
                 { id: 'agg-03', label: 'AGG-03', color: '#2196F3', shape: 'diamond', group: 'backbone' },
                 { id: 'rr-01', label: 'RR-01', color: '#9C27B0', shape: 'star', group: 'backbone' },
                 { id: 'edge-01', label: 'EDGE-01', color: '#FF9800', shape: 'square', group: 'inet_edge' },
                 { id: 'edge-02', label: 'EDGE-02', color: '#FF9800', shape: 'square', group: 'inet_edge' },
-            ]);
-            
-            const edges = new vis.DataSet([
-                { from: 'pe-nyc-01', to: 'fw-east', color: '#333' },
-                { from: 'pe-iad-01', to: 'fw-east', color: '#333' },
-                { from: 'pe-lax-01', to: 'fw-west', color: '#333' },
-                { from: 'fw-east', to: 'agg-01', color: '#333' },
-                { from: 'fw-west', to: 'agg-03', color: '#333' },
-                { from: 'agg-01', to: 'agg-02', color: '#444', width: 3 },
-                { from: 'agg-02', to: 'agg-03', color: '#444', width: 3 },
-                { from: 'agg-01', to: 'agg-03', color: '#444', width: 2 },
-                { from: 'agg-01', to: 'rr-01', color: '#333', dashes: true },
-                { from: 'agg-02', to: 'rr-01', color: '#333', dashes: true },
-                { from: 'agg-02', to: 'fw-edge', color: '#333' },
-                { from: 'fw-edge', to: 'edge-01', color: '#333' },
-                { from: 'fw-edge', to: 'edge-02', color: '#333' },
-            ]);
-            
-            network.setData({ nodes, edges });
+            ];
+            const edges = [
+                { from: 'pe-nyc-01', to: 'fw-east-01', color: {color:'#333'} },
+                { from: 'pe-iad-01', to: 'fw-east-01', color: {color:'#333'} },
+                { from: 'pe-lax-01', to: 'fw-west-01', color: {color:'#333'} },
+                { from: 'pe-sfo-01', to: 'fw-west-01', color: {color:'#333'} },
+                { from: 'fw-east-01', to: 'agg-01', color: {color:'#333'}, width: 3 },
+                { from: 'fw-west-01', to: 'agg-03', color: {color:'#333'}, width: 3 },
+                { from: 'agg-01', to: 'agg-02', color: {color:'#444'}, width: 4 },
+                { from: 'agg-02', to: 'agg-03', color: {color:'#444'}, width: 4 },
+                { from: 'agg-01', to: 'agg-03', color: {color:'#444'}, width: 4 },
+                { from: 'agg-01', to: 'rr-01', color: {color:'#333'}, dashes: true },
+                { from: 'agg-02', to: 'rr-01', color: {color:'#333'}, dashes: true },
+                { from: 'agg-02', to: 'fw-edge-01', color: {color:'#333'}, width: 3 },
+                { from: 'fw-edge-01', to: 'edge-01', color: {color:'#333'} },
+                { from: 'fw-edge-01', to: 'edge-02', color: {color:'#333'} },
+            ];
+            nodesDataSet.add(nodes);
+            edgesDataSet.add(edges);
         }
-        
-        function setMode(mode) {
-            currentMode = mode;
-            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            if (mode === 'flow') {
-                document.getElementById('destInput').style.display = 'block';
-            }
-        }
-        
-        async function trace() {
-            const source = document.getElementById('sourceInput').value;
-            const dest = document.getElementById('destInput').value;
-            
-            if (!source) return;
-            
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML = '<div class="result-card"><h3>Tracing...</h3><p>Walking forwarding path...</p></div>';
-            
-            try {
-                const response = await fetch('/api/trace', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ source, destination: dest || null })
-                });
-                
-                const data = await response.json();
-                renderResults(data);
-            } catch (e) {
-                resultsDiv.innerHTML = `
-                    <div class="result-card warning">
-                        <h3>Demo Mode</h3>
-                        <p>Backend not running. Showing sample trace for <code>${source}</code></p>
-                    </div>
-                    <div class="result-card origin">
-                        <h3>Origin Found</h3>
-                        <p>Prefix: <code>${source}</code></p>
-                        <p>Originated at: <code>PE-NYC-01</code></p>
-                        <p>Type: BGP (eBGP learned, AS-path: 15169)</p>
-                        <p>VRF: CUST-ACME</p>
-                    </div>
-                    <div class="result-card">
-                        <h3>Primary Path</h3>
-                        <div class="path-hop">
-                            <div class="hop-seq">1</div>
-                            <div class="hop-info">
-                                <div class="hop-name">PE-NYC-01</div>
-                                <div class="hop-detail">MPLS push → AGG-01</div>
-                            </div>
-                            <span class="hop-label">L:300144</span>
-                        </div>
-                        <div class="path-hop">
-                            <div class="hop-seq">2</div>
-                            <div class="hop-info">
-                                <div class="hop-name">FW-EAST</div>
-                                <div class="hop-detail">Static route → backbone</div>
-                            </div>
-                        </div>
-                        <div class="path-hop">
-                            <div class="hop-seq">3</div>
-                            <div class="hop-info">
-                                <div class="hop-name">AGG-01</div>
-                                <div class="hop-detail">MPLS swap → AGG-02</div>
-                            </div>
-                            <span class="hop-label">L:300288</span>
-                        </div>
-                        <div class="path-hop">
-                            <div class="hop-seq">4</div>
-                            <div class="hop-info">
-                                <div class="hop-name">AGG-02</div>
-                                <div class="hop-detail">MPLS pop (PHP)</div>
-                            </div>
-                        </div>
-                        <div class="path-hop">
-                            <div class="hop-seq">5</div>
-                            <div class="hop-info">
-                                <div class="hop-name">FW-EDGE</div>
-                                <div class="hop-detail">Static route → edge</div>
-                            </div>
-                        </div>
-                        <div class="path-hop">
-                            <div class="hop-seq">6</div>
-                            <div class="hop-info">
-                                <div class="hop-name">EDGE-01</div>
-                                <div class="hop-detail">eBGP → AS15169</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                // Highlight path on topology
-                highlightPath(['pe-nyc-01', 'fw-east', 'agg-01', 'agg-02', 'fw-edge', 'edge-01']);
-            }
-        }
-        
-        function highlightPath(nodeIds) {
-            // Reset all edges
-            network.getSelectedNodes().forEach(id => network.unselectAll());
-            
-            // Highlight path nodes and edges
-            network.selectNodes(nodeIds);
-            
-            // Animate path edges
-            const allEdges = network.body.data.edges.getIds();
-            allEdges.forEach(edgeId => {
-                const edge = network.body.data.edges.get(edgeId);
-                const fromIdx = nodeIds.indexOf(edge.from);
-                const toIdx = nodeIds.indexOf(edge.to);
-                
-                if (fromIdx !== -1 && toIdx !== -1 && Math.abs(fromIdx - toIdx) === 1) {
-                    network.body.data.edges.update({
-                        id: edgeId,
-                        color: '#4CAF50',
-                        width: 4
-                    });
+
+        function highlightEdgePath(nodeIds) {
+            // Reset all edges to default
+            edgesDataSet.forEach(edge => {
+                edgesDataSet.update({ id: edge.id, color: {color: '#333', highlight: '#4CAF50'}, width: edge._origWidth || edge.width || 1 });
+            });
+            // Highlight edges on the path
+            edgesDataSet.forEach(edge => {
+                const fi = nodeIds.indexOf(edge.from);
+                const ti = nodeIds.indexOf(edge.to);
+                const fi2 = nodeIds.indexOf(edge.to);
+                const ti2 = nodeIds.indexOf(edge.from);
+                if ((fi !== -1 && ti !== -1 && Math.abs(fi - ti) === 1) ||
+                    (fi2 !== -1 && ti2 !== -1 && Math.abs(fi2 - ti2) === 1)) {
+                    edgesDataSet.update({ id: edge.id, color: {color: '#4CAF50'}, width: 5 });
                 }
             });
+            network.selectNodes(nodeIds);
         }
-        
-        function renderResults(data) {
+
+        async function trace() {
+            const prefix = document.getElementById('prefixInput').value.trim();
+            if (!prefix) return;
+
+            const resultsDiv = document.getElementById('results');
+            const btn = document.getElementById('traceBtn');
+            btn.disabled = true;
+            btn.textContent = 'Querying...';
+
+            resultsDiv.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Querying AT&T route server for <code style="color:#4CAF50">${prefix}</code>...</p>
+                    <p style="color:#555;font-size:11px;margin-top:8px">This may take 30-60 seconds (16M+ routes)</p>
+                </div>`;
+
+            try {
+                const resp = await fetch('/api/trace', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source: prefix })
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.detail || 'Trace failed');
+                }
+
+                const data = await resp.json();
+                renderBGPResults(data, prefix);
+
+                // Highlight the path through the topology: edge → fw-edge → agg → fw → pe
+                highlightEdgePath(['edge-01', 'fw-edge-01', 'agg-02', 'agg-01', 'fw-east-01', 'pe-nyc-01']);
+
+            } catch (e) {
+                resultsDiv.innerHTML = `
+                    <div class="result-card" style="border-left: 3px solid #F44336;">
+                        <h3>Error</h3>
+                        <p>${e.message}</p>
+                        <p style="color:#555;font-size:11px;margin-top:4px">Make sure the backend is running: <code>uvicorn main:app</code></p>
+                    </div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Trace';
+            }
+        }
+
+        function renderBGPResults(data, prefix) {
             const resultsDiv = document.getElementById('results');
             let html = '';
-            
-            if (data.origins && data.origins.length > 0) {
-                data.origins.forEach(origin => {
-                    html += `
-                        <div class="result-card origin">
-                            <h3>Origin: ${origin.originating_router}</h3>
-                            <p>Prefix: <code>${origin.prefix}</code></p>
-                            <p>VRF: <code>${origin.vrf || 'global'}</code></p>
-                            <p>Type: ${origin.origin_type}</p>
-                            ${origin.bgp_as_path ? `<p>AS-Path: <code>${origin.bgp_as_path}</code></p>` : ''}
+
+            // Summary bar
+            html += `
+                <div class="summary-bar">
+                    <div class="stat"><div class="num">${data.path_count || 0}</div><div class="lbl">Paths</div></div>
+                    <div class="stat"><div class="num">${data.active_count || 0}</div><div class="lbl">Active</div></div>
+                    <div class="stat"><div class="num">${(data.bgp_paths || []).length - (data.active_count || 0)}</div><div class="lbl">Backup</div></div>
+                </div>`;
+
+            html += `<h2>BGP Paths for ${prefix}</h2>`;
+
+            const paths = data.bgp_paths || [];
+            paths.forEach((p, i) => {
+                const cardClass = p.active ? 'active-path' : 'inactive-path';
+                const tagClass = p.active ? 'best' : 'notbest';
+                const tagText = p.active ? '★ BEST' : 'backup';
+                const city = p.city || 'Unknown';
+
+                html += `
+                    <div class="result-card ${cardClass}" onclick="toggleDetail(this)">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <h3>#${i + 1} — ${p.next_hop}</h3>
+                            <span class="active-tag ${tagClass}">${tagText}</span>
                         </div>
-                    `;
-                });
-            }
-            
-            if (data.warnings && data.warnings.length > 0) {
-                data.warnings.forEach(w => {
-                    html += `<div class="result-card warning"><h3>⚠️ Warning</h3><p>${w}</p></div>`;
-                });
-            }
-            
-            resultsDiv.innerHTML = html || '<div class="result-card"><h3>No results</h3></div>';
+                        <span class="city-tag">📍 ${city}</span>
+                        <div class="path-detail" style="display:none">
+                            <div class="field"><span class="label">AS Path</span><span class="value">${p.as_path || 'n/a'}</span></div>
+                            <div class="field"><span class="label">Origin</span><span class="value">${p.origin || '?'}</span></div>
+                            <div class="field"><span class="label">Local Pref</span><span class="value">${p.local_pref ?? 'n/a'}</span></div>
+                            <div class="field"><span class="label">MED</span><span class="value">${p.med ?? 'n/a'}</span></div>
+                            <div class="field"><span class="label">Peer AS</span><span class="value">${p.peer_as || 'n/a'}</span></div>
+                            <div class="field"><span class="label">Router ID</span><span class="value">${p.router_id || 'n/a'}</span></div>
+                            <div class="field"><span class="label">Age</span><span class="value">${p.age || 'n/a'}</span></div>
+                            ${p.inactive_reason ? `<div class="field"><span class="label">Inactive</span><span class="value" style="color:#FF9800">${p.inactive_reason}</span></div>` : ''}
+                            <div style="margin-top:6px">
+                                <span class="label" style="color:#666;font-size:11px">Communities:</span>
+                                <div class="comm-list">
+                                    ${(p.communities || []).map(c => `<span class="comm-tag">${c}</span>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+
+            resultsDiv.innerHTML = html;
         }
-        
-        // Enter key triggers trace
-        document.getElementById('sourceInput').addEventListener('keypress', e => {
+
+        function toggleDetail(card) {
+            const detail = card.querySelector('.path-detail');
+            if (detail) {
+                detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
+                card.classList.toggle('selected');
+            }
+        }
+
+        document.getElementById('prefixInput').addEventListener('keypress', e => {
             if (e.key === 'Enter') trace();
         });
-        document.getElementById('destInput').addEventListener('keypress', e => {
-            if (e.key === 'Enter') trace();
-        });
-        
-        // Initialize
+
         initTopology();
     </script>
 </body>
