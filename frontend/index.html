@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Network Path Visualizer</title>
+    <title>Network Path Visualizer — V2</title>
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -22,6 +22,7 @@
         }
         .header h1 { font-size: 18px; font-weight: 600; color: #fff; }
         .header h1 span { color: #4CAF50; }
+        .version-tag { font-size: 10px; background: #1a2a1a; color: #4CAF50; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
         .search-container {
             flex: 1;
             max-width: 600px;
@@ -54,7 +55,7 @@
         .btn-primary:disabled { background: #333; color: #666; cursor: not-allowed; }
         .main {
             display: grid;
-            grid-template-columns: 1fr 420px;
+            grid-template-columns: 1fr 460px;
             height: calc(100vh - 65px);
         }
         #topology { width: 100%; height: 100%; background: #0a0a0f; }
@@ -72,6 +73,17 @@
             letter-spacing: 0.5px;
             margin-bottom: 12px;
         }
+        /* Tab bar */
+        .tab-bar { display: flex; gap: 4px; margin-bottom: 12px; }
+        .tab-btn {
+            flex: 1; padding: 8px; text-align: center; font-size: 12px; font-weight: 600;
+            background: #1a1a24; border: 1px solid #222; border-radius: 6px; cursor: pointer;
+            color: #666; transition: all 0.2s;
+        }
+        .tab-btn.active { background: #1a2a1a; border-color: #4CAF50; color: #4CAF50; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        /* Cards */
         .result-card {
             background: #1a1a24;
             border: 1px solid #222;
@@ -82,8 +94,6 @@
             transition: border-color 0.2s;
         }
         .result-card:hover { border-color: #444; }
-        .result-card.active-path { border-left: 3px solid #4CAF50; }
-        .result-card.inactive-path { border-left: 3px solid #555; }
         .result-card.selected { border-color: #4CAF50; background: #1a2a1a; }
         .result-card h3 { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 6px; }
         .result-card p { font-size: 12px; color: #888; line-height: 1.5; }
@@ -95,6 +105,25 @@
             font-size: 11px;
             color: #4CAF50;
         }
+        /* Preference colors */
+        .pref-primary { border-left: 3px solid #4CAF50; }
+        .pref-secondary { border-left: 3px solid #FF9800; }
+        .pref-tertiary { border-left: 3px solid #F44336; }
+        .pref-unknown { border-left: 3px solid #555; }
+        .pref-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .pref-tag.primary { background: #1b3a1b; color: #4CAF50; }
+        .pref-tag.secondary { background: #2a2a1a; color: #FF9800; }
+        .pref-tag.tertiary { background: #2a1a1a; color: #F44336; }
+        .pref-tag.unknown { background: #222; color: #666; }
+        .pref-tag.best { background: #1b3a1b; color: #4CAF50; }
+        .pref-tag.notbest { background: #222; color: #666; }
+        /* Path detail */
         .path-detail { margin-top: 8px; }
         .path-detail .field {
             display: flex;
@@ -105,25 +134,24 @@
         }
         .path-detail .field .label { color: #666; }
         .path-detail .field .value { color: #ccc; font-family: monospace; font-size: 11px; }
-        .city-tag {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 10px;
-            font-weight: 600;
-            background: #1a2a3a;
-            color: #4fc3f7;
-            margin-top: 4px;
+        /* Hop chain */
+        .hop-chain { margin-top: 8px; padding: 8px; background: #0a0a0f; border-radius: 6px; }
+        .hop-chain .hop {
+            display: flex; align-items: center; gap: 8px; padding: 4px 0;
+            font-size: 11px;
         }
-        .active-tag {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 10px;
-            font-weight: 600;
+        .hop-chain .hop .role-badge {
+            display: inline-block; padding: 1px 6px; border-radius: 3px;
+            font-size: 9px; font-weight: 700; text-transform: uppercase; min-width: 40px; text-align: center;
         }
-        .active-tag.best { background: #1b3a1b; color: #4CAF50; }
-        .active-tag.notbest { background: #2a2a1a; color: #888; }
+        .role-dcpe { background: #1b3a1b; color: #4CAF50; }
+        .role-spe { background: #1a2a1a; color: #66BB6A; }
+        .role-t2_fw { background: #2a1a1a; color: #EF5350; }
+        .role-agg { background: #1a1a3a; color: #42A5F5; }
+        .role-t1_fw { background: #2a1a1a; color: #F44336; }
+        .role-ipe { background: #2a1a0a; color: #FF9800; }
+        .hop-chain .arrow { color: #333; font-size: 10px; }
+        /* Summary */
         .summary-bar {
             background: #1a1a24;
             border: 1px solid #222;
@@ -134,8 +162,28 @@
             justify-content: space-around;
             text-align: center;
         }
-        .summary-bar .stat .num { font-size: 24px; font-weight: 700; color: #4CAF50; }
+        .summary-bar .stat .num { font-size: 24px; font-weight: 700; }
         .summary-bar .stat .lbl { font-size: 10px; color: #666; text-transform: uppercase; }
+        .num-primary { color: #4CAF50; }
+        .num-secondary { color: #FF9800; }
+        .num-tertiary { color: #F44336; }
+        .num-total { color: #4CAF50; }
+        /* Tags */
+        .city-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            background: #1a2a3a;
+            color: #4fc3f7;
+            margin-top: 4px;
+        }
+        .comm-list { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+        .comm-tag {
+            font-size: 10px; padding: 1px 5px; border-radius: 3px;
+            background: #222; color: #aaa; font-family: monospace;
+        }
         .legend {
             display: flex;
             gap: 16px;
@@ -155,19 +203,14 @@
             animation: spin 0.8s linear infinite; margin: 0 auto 12px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .comm-list { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
-        .comm-tag {
-            font-size: 10px; padding: 1px 5px; border-radius: 3px;
-            background: #222; color: #aaa; font-family: monospace;
-        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1><span>⬡</span> Network Path Visualizer</h1>
+        <h1><span>⬡</span> Network Path Visualizer <span class="version-tag">V2 AGG-First</span></h1>
         <div class="search-container">
             <input type="text" class="search-input" id="prefixInput"
-                   placeholder="Enter prefix (e.g., 8.8.8.0/24, 1.1.1.0/24)" value="8.8.8.0/24">
+                   placeholder="Enter prefix (e.g., 8.8.8.0/24)" value="8.8.8.0/24">
             <button class="btn btn-primary" id="traceBtn" onclick="trace()">Trace</button>
         </div>
     </div>
@@ -178,23 +221,21 @@
             <div id="results">
                 <div class="empty-state">
                     <h3>Enter a prefix to trace</h3>
-                    <p>Query the AT&T route server for all BGP paths to a prefix.
-                    See active/inactive paths, AS-paths, communities, and next-hop cities.</p>
+                    <p>V2: AGG-first algorithm with community decode.<br>
+                    Shows primary/secondary/tertiary paths with OID/AID labels.</p>
                     <br>
                     <p style="color: #4CAF50; font-family: monospace;">
-                        8.8.8.0/24 — Google DNS (16 paths)<br>
+                        8.8.8.0/24 — Google DNS<br>
                         1.1.1.0/24 — Cloudflare<br>
                         13.107.42.0/24 — Microsoft
                     </p>
                 </div>
             </div>
             <div class="legend">
-                <div class="legend-item"><div class="legend-dot" style="background:#81C784"></div> DCCE</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#4CAF50"></div> DCPE</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#66BB6A"></div> SPE</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#F44336"></div> FW</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#4CAF50"></div> Primary</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#FF9800"></div> Secondary</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#F44336"></div> Tertiary</div>
                 <div class="legend-item"><div class="legend-dot" style="background:#2196F3"></div> AGG</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#FF9800"></div> IPE</div>
                 <div class="legend-item"><div class="legend-dot" style="background:#9C27B0"></div> RR</div>
             </div>
         </div>
@@ -217,15 +258,7 @@
                     smooth: { type: 'continuous' },
                     font: { color: '#555', size: 10 },
                 },
-                physics: {
-                    enabled: false  // Using fixed hierarchical positions
-                },
-                groups: {
-                    backbone:  { color: { background: '#1a237e', border: '#2196F3' } },
-                    pe_zone:   { color: { background: '#1b5e20', border: '#4CAF50' } },
-                    inet_edge: { color: { background: '#e65100', border: '#FF9800' } },
-                    firewall:  { color: { background: '#b71c1c', border: '#F44336' } }
-                },
+                physics: { enabled: false },
                 interaction: { hover: true, tooltipDelay: 200 }
             };
 
@@ -243,27 +276,25 @@
         }
 
         function loadDemoTopology() {
-            // 7-tier MPLS demo: DCCE → DCPE → SPE → T2-FW → AGG → T1-FW → IPE
             const tier = (t, site) => ({ x: site === 'east' ? -200 : 200, y: [0,400,300,200,100,0,-100,-200][t] });
-            const e = (site) => site === 'east' ? -200 : 200;
             const nodes = [
-                { id: 'dcce-east-01', label: 'DCCE-EAST-01', color: '#81C784', shape: 'dot', ...tier(1,'east'), fixed: true },
-                { id: 'dcce-west-01', label: 'DCCE-WEST-01', color: '#81C784', shape: 'dot', ...tier(1,'west'), fixed: true },
-                { id: 'dcpe-east-01', label: 'DCPE-EAST-01', color: '#4CAF50', shape: 'dot', ...tier(2,'east'), fixed: true },
-                { id: 'dcpe-west-01', label: 'DCPE-WEST-01', color: '#4CAF50', shape: 'dot', ...tier(2,'west'), fixed: true },
-                { id: 'spe-east-01',  label: 'SPE-EAST-01',  color: '#66BB6A', shape: 'hexagon', ...tier(3,'east'), fixed: true },
-                { id: 'spe-west-01',  label: 'SPE-WEST-01',  color: '#66BB6A', shape: 'hexagon', ...tier(3,'west'), fixed: true },
-                { id: 't2fw-east-01', label: 'T2FW-EAST-01', color: '#EF5350', shape: 'triangle', ...tier(4,'east'), fixed: true },
-                { id: 't2fw-west-01', label: 'T2FW-WEST-01', color: '#EF5350', shape: 'triangle', ...tier(4,'west'), fixed: true },
-                { id: 'agg-east-01',  label: 'AGG-EAST-01',  color: '#2196F3', shape: 'diamond', ...tier(5,'east'), fixed: true },
-                { id: 'agg-west-01',  label: 'AGG-WEST-01',  color: '#2196F3', shape: 'diamond', ...tier(5,'west'), fixed: true },
-                { id: 'rr-core-01',   label: 'RR-CORE\n(core)', color: '#9C27B0', shape: 'star', x: 400, y: 20, fixed: true },
-                { id: 'rr-agg-01',    label: 'RR-AGG\n(agg)',   color: '#9C27B0', shape: 'star', x: 400, y: 0, fixed: true },
-                { id: 'rr-inet-01',   label: 'RR-INET\n(inet)', color: '#9C27B0', shape: 'star', x: 400, y: -20, fixed: true },
-                { id: 't1fw-east-01', label: 'T1FW-EAST-01', color: '#F44336', shape: 'triangle', ...tier(6,'east'), fixed: true },
-                { id: 't1fw-west-01', label: 'T1FW-WEST-01', color: '#F44336', shape: 'triangle', ...tier(6,'west'), fixed: true },
-                { id: 'ipe-east-01',  label: 'IPE-EAST-01',  color: '#FF9800', shape: 'square', ...tier(7,'east'), fixed: true },
-                { id: 'ipe-west-01',  label: 'IPE-WEST-01',  color: '#FF9800', shape: 'square', ...tier(7,'west'), fixed: true },
+                { id: 'dcce-east-01', label: 'DCCE-EAST', color: '#81C784', shape: 'dot', ...tier(1,'east'), fixed: true },
+                { id: 'dcce-west-01', label: 'DCCE-WEST', color: '#81C784', shape: 'dot', ...tier(1,'west'), fixed: true },
+                { id: 'dcpe-east-01', label: 'DCPE-EAST', color: '#4CAF50', shape: 'dot', ...tier(2,'east'), fixed: true },
+                { id: 'dcpe-west-01', label: 'DCPE-WEST', color: '#4CAF50', shape: 'dot', ...tier(2,'west'), fixed: true },
+                { id: 'spe-east-01',  label: 'SPE-EAST',  color: '#66BB6A', shape: 'hexagon', ...tier(3,'east'), fixed: true },
+                { id: 'spe-west-01',  label: 'SPE-WEST',  color: '#66BB6A', shape: 'hexagon', ...tier(3,'west'), fixed: true },
+                { id: 't2fw-east-01', label: 'T2FW-EAST', color: '#EF5350', shape: 'triangle', ...tier(4,'east'), fixed: true },
+                { id: 't2fw-west-01', label: 'T2FW-WEST', color: '#EF5350', shape: 'triangle', ...tier(4,'west'), fixed: true },
+                { id: 'agg-east-01',  label: 'AGG-EAST',  color: '#2196F3', shape: 'diamond', ...tier(5,'east'), fixed: true },
+                { id: 'agg-west-01',  label: 'AGG-WEST',  color: '#2196F3', shape: 'diamond', ...tier(5,'west'), fixed: true },
+                { id: 'rr-core-01',   label: 'RR-CORE', color: '#9C27B0', shape: 'star', x: 400, y: 20, fixed: true },
+                { id: 'rr-agg-01',    label: 'RR-AGG',  color: '#9C27B0', shape: 'star', x: 400, y: 0, fixed: true },
+                { id: 'rr-inet-01',   label: 'RR-INET', color: '#9C27B0', shape: 'star', x: 400, y: -20, fixed: true },
+                { id: 't1fw-east-01', label: 'T1FW-EAST', color: '#F44336', shape: 'triangle', ...tier(6,'east'), fixed: true },
+                { id: 't1fw-west-01', label: 'T1FW-WEST', color: '#F44336', shape: 'triangle', ...tier(6,'west'), fixed: true },
+                { id: 'ipe-east-01',  label: 'IPE-EAST',  color: '#FF9800', shape: 'square', ...tier(7,'east'), fixed: true },
+                { id: 'ipe-west-01',  label: 'IPE-WEST',  color: '#FF9800', shape: 'square', ...tier(7,'west'), fixed: true },
             ];
             const c = {color:'#333'};
             const edges = [
@@ -288,25 +319,6 @@
             edgesDataSet.add(edges);
         }
 
-        function highlightEdgePath(nodeIds) {
-            // Reset all edges to default
-            edgesDataSet.forEach(edge => {
-                edgesDataSet.update({ id: edge.id, color: {color: '#333', highlight: '#4CAF50'}, width: edge._origWidth || edge.width || 1 });
-            });
-            // Highlight edges on the path
-            edgesDataSet.forEach(edge => {
-                const fi = nodeIds.indexOf(edge.from);
-                const ti = nodeIds.indexOf(edge.to);
-                const fi2 = nodeIds.indexOf(edge.to);
-                const ti2 = nodeIds.indexOf(edge.from);
-                if ((fi !== -1 && ti !== -1 && Math.abs(fi - ti) === 1) ||
-                    (fi2 !== -1 && ti2 !== -1 && Math.abs(fi2 - ti2) === 1)) {
-                    edgesDataSet.update({ id: edge.id, color: {color: '#4CAF50'}, width: 5 });
-                }
-            });
-            network.selectNodes(nodeIds);
-        }
-
         async function trace() {
             const prefix = document.getElementById('prefixInput').value.trim();
             if (!prefix) return;
@@ -319,8 +331,8 @@
             resultsDiv.innerHTML = `
                 <div class="loading">
                     <div class="spinner"></div>
-                    <p>Querying AT&T route server for <code style="color:#4CAF50">${prefix}</code>...</p>
-                    <p style="color:#555;font-size:11px;margin-top:8px">This may take 30-60 seconds (16M+ routes)</p>
+                    <p>Querying AGG for <code style="color:#4CAF50">${prefix}</code>...</p>
+                    <p style="color:#555;font-size:11px;margin-top:8px">AGG-first: decode communities → derive paths</p>
                 </div>`;
 
             try {
@@ -336,17 +348,12 @@
                 }
 
                 const data = await resp.json();
-                renderBGPResults(data, prefix);
-
-                // Highlight 7-tier path: IPE → T1-FW → AGG → T2-FW → SPE → DCPE → DCCE
-                highlightEdgePath(['ipe-east-01', 't1fw-east-01', 'agg-east-01', 't2fw-east-01', 'spe-east-01', 'dcpe-east-01', 'dcce-east-01']);
-
+                renderResults(data, prefix);
             } catch (e) {
                 resultsDiv.innerHTML = `
                     <div class="result-card" style="border-left: 3px solid #F44336;">
                         <h3>Error</h3>
                         <p>${e.message}</p>
-                        <p style="color:#555;font-size:11px;margin-top:4px">Make sure the backend is running: <code>uvicorn main:app</code></p>
                     </div>`;
             } finally {
                 btn.disabled = false;
@@ -354,34 +361,85 @@
             }
         }
 
-        function renderBGPResults(data, prefix) {
+        function renderResults(data, prefix) {
             const resultsDiv = document.getElementById('results');
+            const ps = data.preference_summary || {};
             let html = '';
 
-            // Summary bar
+            // Summary
             html += `
                 <div class="summary-bar">
-                    <div class="stat"><div class="num">${data.path_count || 0}</div><div class="lbl">Paths</div></div>
-                    <div class="stat"><div class="num">${data.active_count || 0}</div><div class="lbl">Active</div></div>
-                    <div class="stat"><div class="num">${(data.bgp_paths || []).length - (data.active_count || 0)}</div><div class="lbl">Backup</div></div>
+                    <div class="stat"><div class="num num-total">${data.path_count || 0}</div><div class="lbl">Total</div></div>
+                    <div class="stat"><div class="num num-primary">${ps.primary || 0}</div><div class="lbl">Primary</div></div>
+                    <div class="stat"><div class="num num-secondary">${ps.secondary || 0}</div><div class="lbl">Secondary</div></div>
+                    <div class="stat"><div class="num num-tertiary">${ps.tertiary || 0}</div><div class="lbl">Tertiary</div></div>
                 </div>`;
 
-            html += `<h2>BGP Paths for ${prefix}</h2>`;
+            // Tabs
+            html += `
+                <div class="tab-bar">
+                    <div class="tab-btn active" onclick="switchTab('derived')">🔍 Derived Paths</div>
+                    <div class="tab-btn" onclick="switchTab('raw')">📋 Raw BGP</div>
+                </div>`;
 
+            // Derived paths tab
+            html += `<div id="tab-derived" class="tab-content active">`;
+            html += `<h2>Derived Paths for ${prefix}</h2>`;
+
+            const derived = data.derived_paths || [];
+            derived.forEach((p, i) => {
+                const prefClass = `pref-${p.preference}`;
+                html += `
+                    <div class="result-card ${prefClass}" onclick="toggleDetail(this)">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <h3>#${i+1} — ${p.next_hop || 'unknown'}</h3>
+                            <span class="pref-tag ${p.preference}">${p.active ? '★ ' : ''}${p.preference.toUpperCase()}</span>
+                        </div>
+                        <p>${p.description}</p>
+                        <div class="path-detail" style="display:none">
+                            <div class="field"><span class="label">Origin Site</span><span class="value">${p.origin_site || 'n/a'}</span></div>
+                            <div class="field"><span class="label">Advertising Site</span><span class="value">${p.advertising_site || 'n/a'}</span></div>
+                            <div class="field"><span class="label">Region</span><span class="value">${p.region || 'n/a'}</span></div>
+                            <div class="field"><span class="label">Local Pref</span><span class="value">${p.local_pref}</span></div>
+                            <div class="field"><span class="label">AS Path</span><span class="value">${p.as_path || 'n/a'}</span></div>
+                            ${p.firewall ? `<div class="field"><span class="label">T2 Firewall</span><span class="value">${p.firewall.region.toUpperCase()} VRF ${p.firewall.vrf_id}</span></div>` : ''}
+                            ${p.hops && p.hops.length > 0 ? `
+                                <div class="hop-chain">
+                                    <div style="font-size:10px;color:#555;margin-bottom:4px">DERIVED HOP PATH:</div>
+                                    ${p.hops.map((h, j) => `
+                                        ${j > 0 ? '<div class="arrow" style="text-align:center">↓</div>' : ''}
+                                        <div class="hop">
+                                            <span class="role-badge role-${h.role}">${h.role}</span>
+                                            <span style="color:#ccc">${h.device}</span>
+                                            <span style="color:#555;font-size:10px">${h.label || ''}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            <div style="margin-top:6px">
+                                <span class="label" style="color:#666;font-size:11px">Communities:</span>
+                                <div class="comm-list">
+                                    ${(p.communities || []).map(c => `<span class="comm-tag">${c}</span>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+            html += `</div>`;
+
+            // Raw BGP tab
+            html += `<div id="tab-raw" class="tab-content">`;
+            html += `<h2>Raw BGP Paths</h2>`;
             const paths = data.bgp_paths || [];
             paths.forEach((p, i) => {
-                const cardClass = p.active ? 'active-path' : 'inactive-path';
-                const tagClass = p.active ? 'best' : 'notbest';
-                const tagText = p.active ? '★ BEST' : 'backup';
-                const city = p.city || 'Unknown';
-
+                const cardClass = p.active ? 'pref-primary' : 'pref-unknown';
                 html += `
                     <div class="result-card ${cardClass}" onclick="toggleDetail(this)">
                         <div style="display:flex;justify-content:space-between;align-items:center">
-                            <h3>#${i + 1} — ${p.next_hop}</h3>
-                            <span class="active-tag ${tagClass}">${tagText}</span>
+                            <h3>#${i+1} — ${p.next_hop}</h3>
+                            <span class="pref-tag ${p.active ? 'best' : 'notbest'}">${p.active ? '★ BEST' : 'backup'}</span>
                         </div>
-                        <span class="city-tag">📍 ${city}</span>
+                        ${p.city ? `<span class="city-tag">📍 ${p.city}</span>` : ''}
                         <div class="path-detail" style="display:none">
                             <div class="field"><span class="label">AS Path</span><span class="value">${p.as_path || 'n/a'}</span></div>
                             <div class="field"><span class="label">Origin</span><span class="value">${p.origin || '?'}</span></div>
@@ -400,8 +458,16 @@
                         </div>
                     </div>`;
             });
+            html += `</div>`;
 
             resultsDiv.innerHTML = html;
+        }
+
+        function switchTab(name) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab-${name}`).classList.add('active');
+            event.target.classList.add('active');
         }
 
         function toggleDetail(card) {
