@@ -1,0 +1,364 @@
+---
+# Network Path Visualizer — FIS Production Inventory
+# Maps Jeremy's 7-tier MPLS architecture for route collection
+# ⚠️ CONFIDENTIAL — do not commit real IPs/creds
+#
+# Architecture: DCPE → SPE → [T2 FW] → AGG → [T1 FW] → IPE
+# All Juniper Junos except firewalls (Palo Alto via Panorama)
+
+all:
+  vars:
+    ansible_network_os: junipernetworks.junos.junos
+    ansible_connection: ansible.netcommon.netconf
+    netconf_port: 830
+    # Creds via vault or env — never plaintext
+    ansible_user: "{{ lookup('env', 'NET_USER') }}"
+    ansible_password: "{{ lookup('env', 'NET_PASS') }}"
+
+  children:
+    # ============================================================
+    # AMERICAS (Type 0) — Sites 1-4
+    # ============================================================
+    americas:
+      children:
+        # --- SITE 1 (Primary Americas DC) ---
+        site1:
+          children:
+            site1_dcpe:
+              vars:
+                device_role: dcpe
+                domain: pe_zone
+                tier: 1
+              hosts:
+                s1-wed01:
+                  ansible_host: "{{ vault_s1_wed01_ip }}"
+                s1-wed02:
+                  ansible_host: "{{ vault_s1_wed02_ip }}"
+
+            site1_spe:
+              vars:
+                device_role: spe
+                domain: pe_zone
+                tier: 2
+              hosts:
+                s1-wex03:
+                  ansible_host: "{{ vault_s1_wex03_ip }}"
+                s1-wex04:
+                  ansible_host: "{{ vault_s1_wex04_ip }}"
+
+            site1_agg:
+              vars:
+                device_role: agg
+                domain: backbone
+                tier: 4
+                asn: 4211000000
+              hosts:
+                s1-wcr01:
+                  ansible_host: "{{ vault_s1_wcr01_ip }}"
+                  rr_role: route_reflector
+                s1-wcr02:
+                  ansible_host: "{{ vault_s1_wcr02_ip }}"
+                  rr_role: client
+
+            site1_ipe:
+              vars:
+                device_role: ipe
+                domain: inet_edge
+                tier: 7
+                asn: 18434
+              hosts:
+                s1-wei01:
+                  ansible_host: "{{ vault_s1_wei01_ip }}"
+                s1-wei02:
+                  ansible_host: "{{ vault_s1_wei02_ip }}"
+
+            site1_p_nodes:
+              vars:
+                device_role: p_node
+                domain: backbone
+              hosts:
+                s1-wcm01:
+                  ansible_host: "{{ vault_s1_wcm01_ip }}"
+                  platform: mx480
+                  generation: legacy
+                s1-wcm02:
+                  ansible_host: "{{ vault_s1_wcm02_ip }}"
+                  platform: mx240
+                  generation: legacy
+                s1-wcm03:
+                  ansible_host: "{{ vault_s1_wcm03_ip }}"
+                  platform: qfx10002
+                  generation: gen2
+                s1-wcm04:
+                  ansible_host: "{{ vault_s1_wcm04_ip }}"
+                  platform: qfx10002
+                  generation: gen2
+                s1-wcm05:
+                  ansible_host: "{{ vault_s1_wcm05_ip }}"
+                  platform: mx10003
+                  generation: gen3
+                s1-wcm06:
+                  ansible_host: "{{ vault_s1_wcm06_ip }}"
+                  platform: mx10003
+                  generation: gen3
+
+            site1_core_rr:
+              vars:
+                device_role: core_rr
+                domain: backbone
+                asn: 18434
+              hosts:
+                s1-wsr03:
+                  ansible_host: "{{ vault_s1_wsr03_ip }}"
+                  logical_system: WSR03
+                s1-wsr04:
+                  ansible_host: "{{ vault_s1_wsr04_ip }}"
+                  logical_system: WSR04
+
+            site1_wee:
+              vars:
+                device_role: wan_pe_edge
+                domain: carrier_vrf
+              hosts:
+                s1-wee03:
+                  ansible_host: "{{ vault_s1_wee03_ip }}"
+                  carrier: sprint
+                s1-wee04:
+                  ansible_host: "{{ vault_s1_wee04_ip }}"
+                  carrier: verizon
+                s1-wee05:
+                  ansible_host: "{{ vault_s1_wee05_ip }}"
+                  carrier: att
+                s1-wee06:
+                  ansible_host: "{{ vault_s1_wee06_ip }}"
+                  carrier: lumen
+
+        # --- SITE 2 (Secondary Americas DC) ---
+        site2:
+          children:
+            site2_dcpe:
+              vars: { device_role: dcpe, domain: pe_zone, tier: 1 }
+              hosts:
+                s2-wed01: { ansible_host: "{{ vault_s2_wed01_ip }}" }
+                s2-wed02: { ansible_host: "{{ vault_s2_wed02_ip }}" }
+            site2_spe:
+              vars: { device_role: spe, domain: pe_zone, tier: 2 }
+              hosts:
+                s2-wex03: { ansible_host: "{{ vault_s2_wex03_ip }}" }
+                s2-wex04: { ansible_host: "{{ vault_s2_wex04_ip }}" }
+            site2_agg:
+              vars: { device_role: agg, domain: backbone, tier: 4, asn: 4211000000 }
+              hosts:
+                s2-wcr01: { ansible_host: "{{ vault_s2_wcr01_ip }}", rr_role: route_reflector }
+                s2-wcr02: { ansible_host: "{{ vault_s2_wcr02_ip }}", rr_role: client }
+            site2_ipe:
+              vars: { device_role: ipe, domain: inet_edge, tier: 7, asn: 18434 }
+              hosts:
+                s2-wei01: { ansible_host: "{{ vault_s2_wei01_ip }}" }
+                s2-wei02: { ansible_host: "{{ vault_s2_wei02_ip }}" }
+            site2_p_nodes:
+              vars: { device_role: p_node, domain: backbone }
+              hosts:
+                s2-wcm03: { ansible_host: "{{ vault_s2_wcm03_ip }}", platform: qfx10002 }
+                s2-wcm04: { ansible_host: "{{ vault_s2_wcm04_ip }}", platform: qfx10002 }
+                s2-wcm05: { ansible_host: "{{ vault_s2_wcm05_ip }}", platform: mx10003 }
+                s2-wcm06: { ansible_host: "{{ vault_s2_wcm06_ip }}", platform: mx10003 }
+
+        # --- SITE 3 (Tertiary Americas) ---
+        site3:
+          children:
+            site3_dcpe:
+              vars: { device_role: dcpe, domain: pe_zone, tier: 1 }
+              hosts:
+                s3-wed01: { ansible_host: "{{ vault_s3_wed01_ip }}" }
+                s3-wed02: { ansible_host: "{{ vault_s3_wed02_ip }}" }
+            site3_spe:
+              vars: { device_role: spe, domain: pe_zone, tier: 2 }
+              hosts:
+                s3-wex03: { ansible_host: "{{ vault_s3_wex03_ip }}" }
+                s3-wex04: { ansible_host: "{{ vault_s3_wex04_ip }}" }
+            site3_agg:
+              vars: { device_role: agg, domain: backbone, tier: 4, asn: 4211000000 }
+              hosts:
+                s3-wcr01: { ansible_host: "{{ vault_s3_wcr01_ip }}", rr_role: route_reflector }
+                s3-wcr02: { ansible_host: "{{ vault_s3_wcr02_ip }}", rr_role: client }
+            site3_ipe:
+              vars: { device_role: ipe, domain: inet_edge, tier: 7, asn: 18434 }
+              hosts:
+                s3-wei01: { ansible_host: "{{ vault_s3_wei01_ip }}" }
+                s3-wei02: { ansible_host: "{{ vault_s3_wei02_ip }}" }
+
+        # --- SITE 4 (Independent Americas) ---
+        site4:
+          children:
+            site4_dcpe:
+              vars: { device_role: dcpe, domain: pe_zone, tier: 1 }
+              hosts:
+                s4-wed01: { ansible_host: "{{ vault_s4_wed01_ip }}" }
+                s4-wed02: { ansible_host: "{{ vault_s4_wed02_ip }}" }
+            site4_spe:
+              vars: { device_role: spe, domain: pe_zone, tier: 2 }
+              hosts:
+                s4-wex03: { ansible_host: "{{ vault_s4_wex03_ip }}" }
+                s4-wex04: { ansible_host: "{{ vault_s4_wex04_ip }}" }
+            site4_agg:
+              vars: { device_role: agg, domain: backbone, tier: 4, asn: 4211000000 }
+              hosts:
+                s4-wcr01: { ansible_host: "{{ vault_s4_wcr01_ip }}", rr_role: route_reflector }
+                s4-wcr02: { ansible_host: "{{ vault_s4_wcr02_ip }}", rr_role: client }
+
+    # ============================================================
+    # EMEA (Type 3) — Sites 7-8
+    # ============================================================
+    emea:
+      children:
+        site7:
+          children:
+            site7_dcpe:
+              vars: { device_role: dcpe, domain: pe_zone, tier: 1 }
+              hosts:
+                s7-wed01: { ansible_host: "{{ vault_s7_wed01_ip }}" }
+                s7-wed02: { ansible_host: "{{ vault_s7_wed02_ip }}" }
+            site7_spe:
+              vars: { device_role: spe, domain: pe_zone, tier: 2 }
+              hosts:
+                s7-wex03: { ansible_host: "{{ vault_s7_wex03_ip }}" }
+                s7-wex04: { ansible_host: "{{ vault_s7_wex04_ip }}" }
+            site7_agg:
+              vars: { device_role: agg, domain: backbone, tier: 4, asn: 4211000000 }
+              hosts:
+                s7-wcr01: { ansible_host: "{{ vault_s7_wcr01_ip }}", rr_role: route_reflector }
+                s7-wcr02: { ansible_host: "{{ vault_s7_wcr02_ip }}", rr_role: client }
+
+        site8:
+          children:
+            site8_dcpe:
+              vars: { device_role: dcpe, domain: pe_zone, tier: 1 }
+              hosts:
+                s8-wed01: { ansible_host: "{{ vault_s8_wed01_ip }}" }
+                s8-wed02: { ansible_host: "{{ vault_s8_wed02_ip }}" }
+            site8_spe:
+              vars: { device_role: spe, domain: pe_zone, tier: 2 }
+              hosts:
+                s8-wex03: { ansible_host: "{{ vault_s8_wex03_ip }}" }
+                s8-wex04: { ansible_host: "{{ vault_s8_wex04_ip }}" }
+            site8_agg:
+              vars: { device_role: agg, domain: backbone, tier: 4, asn: 4211000000 }
+              hosts:
+                s8-wcr01: { ansible_host: "{{ vault_s8_wcr01_ip }}", rr_role: route_reflector }
+                s8-wcr02: { ansible_host: "{{ vault_s8_wcr02_ip }}", rr_role: client }
+
+    # ============================================================
+    # APAC (Type 4) — Sites 17-19
+    # ============================================================
+    apac:
+      children:
+        site17:
+          children:
+            site17_dcpe:
+              vars: { device_role: dcpe, domain: pe_zone, tier: 1 }
+              hosts:
+                s17-wed01: { ansible_host: "{{ vault_s17_wed01_ip }}" }
+                s17-wed02: { ansible_host: "{{ vault_s17_wed02_ip }}" }
+            site17_agg:
+              vars: { device_role: agg, domain: backbone, tier: 4 }
+              hosts:
+                s17-wcr01: { ansible_host: "{{ vault_s17_wcr01_ip }}" }
+
+        site18:
+          children:
+            site18_dcpe:
+              vars: { device_role: dcpe, domain: pe_zone, tier: 1 }
+              hosts:
+                s18-wed01: { ansible_host: "{{ vault_s18_wed01_ip }}" }
+
+        site19:
+          children:
+            site19_dcpe:
+              vars: { device_role: dcpe, domain: pe_zone, tier: 1 }
+              hosts:
+                s19-wed01: { ansible_host: "{{ vault_s19_wed01_ip }}" }
+
+    # ============================================================
+    # FIREWALLS — Domain Boundaries
+    # ============================================================
+    firewalls:
+      vars:
+        ansible_connection: httpapi
+        vendor: palo_alto
+        ansible_network_os: paloaltonetworks.panos.panos
+      children:
+        t2_firewalls:
+          vars:
+            fw_tier: t2
+            notes: "Per-COI, sits between SPE and AGG"
+          hosts:
+            # T2 FWs are per-site per-COI — populate from Panorama API
+            # Addressing: americas=100.120.{vrf}.x, emea=100.123.{vrf}.x, apac=100.124.{vrf}.x
+
+        t1_firewalls:
+          vars:
+            fw_tier: t1
+            notes: "Internet boundary, sits between AGG and IPE"
+          hosts:
+            # T1 FWs per-site — populate from Panorama API
+
+    # ============================================================
+    # PANORAMA — Firewall Management
+    # ============================================================
+    panorama:
+      vars:
+        ansible_connection: httpapi
+        vendor: palo_alto
+      hosts:
+        panorama-primary:
+          ansible_host: "{{ vault_panorama_ip }}"
+          notes: "Central management — source of truth for all FW routes"
+
+    # ============================================================
+    # CARRIER VRF PEERING (WEE routers)
+    # ============================================================
+    carrier_edge:
+      vars:
+        device_role: wan_pe_edge
+        domain: carrier_vrf
+        notes: "Peers with carrier MPLS — I03006 VRF"
+      # Hosts defined per-site above (site1_wee, etc.)
+
+    # ============================================================
+    # PUBLIC ROUTE SERVERS (testing/validation)
+    # ============================================================
+    public_route_servers:
+      vars:
+        ansible_connection: local
+        domain: public_test
+      hosts:
+        att_rs:
+          ansible_host: route-server.ip.att.net
+          rs_type: telnet
+          vendor: juniper
+          login: rviews
+          notes: "AT&T Looking Glass — Junos, 16M+ routes"
+
+# ============================================================
+# DOMAIN BOUNDARY MAP
+# NPV path walker uses this to know which FWs connect which domains
+# ============================================================
+# tier_flow:
+#   1: DCPE (pe_zone) — customer/compute facing
+#   2: SPE (pe_zone) — service PE, aggregates DCPE
+#   3: T2 FW (boundary) — per-COI firewall
+#   4: AGG (backbone) — MPLS core, ISIS underlay
+#   5: T1 FW (boundary) — internet firewall
+#   6: IPE (inet_edge) — eBGP peering
+#   7: Carrier WEE (carrier_vrf) — remote office MPLS
+#
+# community_decode:
+#   OID: identifies originating site
+#   AID: identifies advertising site
+#   compound: OID:AID → LP mapping (200=primary, 150=secondary, 50=tertiary)
+#
+# rr_tiers:
+#   core: WSR03/WSR04 (ASN 18434) — logical systems
+#   agg: WCR01 per-site (ASN 4211000000) — AGG-CSC VRF
+#   inet: WEI (ASN 18434) — internet RR
