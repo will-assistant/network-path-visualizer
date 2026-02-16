@@ -193,21 +193,41 @@ def resolve_att_city(communities: list[str]) -> Optional[str]:
     return None
 
 
-class BGPCollector:
-    """Collect BGP routing data from AT&T public route server via pexpect."""
+# Known public Junos route servers
+JUNOS_ROUTE_SERVERS = {
+    "att": {
+        "host": "route-server.ip.att.net",
+        "username": "rviews",
+        "password": "rviews",
+        "asn": 7018,
+        "description": "AT&T (AS7018) — 16 BGP peers, US cities",
+    },
+    "tdc": {
+        "host": "route-server.ip.tdc.net",
+        "username": "rviews",
+        "password": "Rviews",
+        "asn": 3292,
+        "description": "TDC A/S (AS3292) — European Junos RS",
+    },
+}
 
-    def __init__(self, host: str = "route-server.ip.att.net",
-                 username: str = "rviews", password: str = "rviews"):
-        self.host = host
-        self.username = username
-        self.password = password
+
+class BGPCollector:
+    """Collect BGP routing data from public Junos route servers via pexpect."""
+
+    def __init__(self, server: str = "att"):
+        config = JUNOS_ROUTE_SERVERS.get(server, JUNOS_ROUTE_SERVERS["att"])
+        self.host = config["host"]
+        self.username = config["username"]
+        self.password = config["password"]
+        self.server_name = server
 
     async def lookup_prefix(self, prefix: str) -> list[BGPPath]:
-        """Query AT&T route server for all paths to a prefix."""
+        """Query a Junos route server for all paths to a prefix."""
         import pexpect
 
         prompt = r'rviews@[^\s]+>'
-        
+
         try:
             child = pexpect.spawn(
                 f'telnet {self.host}',
@@ -215,33 +235,30 @@ class BGPCollector:
                 maxread=2000000,
                 encoding='utf-8',
             )
-            
+
             child.expect('login:', timeout=30)
             child.sendline(self.username)
             child.expect('Password:', timeout=10)
             child.sendline(self.password)
             child.expect(prompt, timeout=30)
-            
+
             # Disable paging
             child.sendline('set cli screen-length 0')
             child.expect(prompt, timeout=10)
-            
+
             # Query the prefix
             child.sendline(f'show route {prefix} detail | no-more')
             child.expect(prompt, timeout=180)
-            
+
             output = child.before
-            
+
             child.sendline('exit')
             child.close()
-            
-            return JunosRouteParser.parse(output, prefix)
-            
-        except Exception as e:
-            logger.error(f"AT&T RS query failed: {e}")
-            raise
 
-    def lookup_prefix_sync(self, prefix: str) -> list[BGPPath]:
-        """Synchronous version for testing."""
-        import asyncio
-        return asyncio.get_event_loop().run_until_complete(self.lookup_prefix(prefix))
+            paths = JunosRouteParser.parse(output, prefix)
+            logger.info(f"[{self.server_name}] {prefix}: {len(paths)} paths")
+            return paths
+
+        except Exception as e:
+            logger.error(f"[{self.server_name}] query failed: {e}")
+            raise

@@ -1,0 +1,299 @@
+ show route 8.8.8.0/24 detail | no-more 
+
+inet.0: 1024150 destinations, 14337996 routes (1024150 active, 0 holddown, 2 hidden)
+8.8.8.0/24 (14 entries, 1 announced)
+        *BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x480d744
+                Next-hop reference count: 1256285
+                Source: 83.88.49.28
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.49.28
+                Indirect next hop: 0x6d10200 352 INH Session ID: 0x0
+                State: <Active Ext>
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:06:05 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.49.28
+                Announcement bits (2): 0-KRT 3-Resolve tree 1 
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:24601
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.49.28
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x17606a6c
+                Next-hop reference count: 1053966
+                Source: 83.88.49.3
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.49.3
+                Indirect next hop: 0x6d11000 359 INH Session ID: 0x0
+                State: <NotBest Ext Changed>
+                Inactive reason: Not Best in its group - Active preferred
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:05:36 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.49.3
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:24601
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.49.3
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x6e86c24
+                Next-hop reference count: 1127402
+                Source: 83.88.49.10
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.49.10
+                Indirect next hop: 0x6d10600 351 INH Session ID: 0x0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Active preferred
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:06:04 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.49.10
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:24901
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.49.10
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x6fb4edc
+                Next-hop reference count: 1422662
+                Source: 83.88.49.11
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.49.11
+                Indirect next hop: 0x6d10400 353 INH Session ID: 0x0
+                State: <NotBest Ext>
+                Inactive reason: Not Best in its group - Active preferred
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:06:04 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.49.11
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:24901
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.49.11
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x181c00d4
+                Next-hop reference count: 1082164
+                Source: 83.88.49.13
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.49.13
+                Indirect next hop: 0x6d11400 361 INH Session ID: 0x0
+                State: <NotBest Ext Changed>
+                Inactive reason: Not Best in its group - Active preferred
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:05:32 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.49.13
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:24401
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.49.13
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x84473e4
+                Next-hop reference count: 1079779
+                Source: 83.88.49.14
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.49.14
+                Indirect next hop: 0x6d10a00 357 INH Session ID: 0x0
+                State: <NotBest Ext Changed>
+                Inactive reason: Not Best in its group - Active preferred
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:05:55 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.49.14
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:23100
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.49.14
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x145aa754
+                Next-hop reference count: 1048019
+                Source: 83.88.49.18
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.49.18
+                Indirect next hop: 0x6d10c00 356 INH Session ID: 0x0
+                State: <NotBest Ext Changed>
+                Inactive reason: Not Best in its group - Active preferred
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:05:52 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.49.18
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:24401
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.49.18
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x18d65b3c
+                Next-hop reference count: 1044283
+                Source: 83.88.49.19
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.49.19
+                Indirect next hop: 0x6d11a00 363 INH Session ID: 0x0
+                State: <NotBest Ext Changed>
+                Inactive reason: Not Best in its group - Active preferred
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:05:36 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.49.19
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:24401
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.49.19
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x1804bfbc
+                Next-hop reference count: 1035988
+                Source: 83.88.49.22
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.49.22
+                Indirect next hop: 0x6d11200 358 INH Session ID: 0x0
+                State: <NotBest Ext Changed>
+                Inactive reason: Not Best in its group - Active preferred
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:05:48 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.49.22
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:23100
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.49.22
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x1873c22c
+                Next-hop reference count: 1030678
+                Source: 83.88.49.23
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.49.23
+                Indirect next hop: 0x6d11600 360 INH Session ID: 0x0
+                State: <NotBest Ext Changed>
+                Inactive reason: Not Best in its group - Active preferred
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:05:37 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.49.23
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:23100
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.49.23
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x729d174
+                Next-hop reference count: 1059874
+                Source: 83.88.49.26
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.49.26
+                Indirect next hop: 0x6d10800 355 INH Session ID: 0x0
+                State: <NotBest Ext Changed>
+                Inactive reason: Not Best in its group - Active preferred
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:05:59 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.49.26
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:24601
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.49.26
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x188d5ffc
+                Next-hop reference count: 1045660
+                Source: 83.88.49.27
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.49.27
+                Indirect next hop: 0x6d11800 362 INH Session ID: 0x0
+                State: <NotBest Ext Changed>
+                Inactive reason: Not Best in its group - Active preferred
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:05:38 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.49.27
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:24601
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.49.27
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x1ab441f4
+                Next-hop reference count: 1030848
+                Source: 83.88.52.93
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.52.93
+                Indirect next hop: 0x6d11e00 366 INH Session ID: 0x0
+                State: <NotBest Ext Changed>
+                Inactive reason: Not Best in its group - Active preferred
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:04:49 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.52.93
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:24601
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.52.93
+         BGP    Preference: 170/-101
+                Next hop type: Indirect, Next hop index: 0
+                Address: 0x19eb11a4
+                Next-hop reference count: 1044539
+                Source: 83.88.52.201
+                Next hop type: Router, Next hop index: 350
+                Next hop: 193.162.154.25 via fxp0.0, selected
+                Session Id: 0x0
+                Protocol next hop: 83.88.52.201
+                Indirect next hop: 0x6d11c00 364 INH Session ID: 0x0
+                State: <NotBest Ext Changed>
+                Inactive reason: Not Best in its group - Active preferred
+                Local AS: 65000 Peer AS:  3292
+                Age: 1w5d 1:05:01 	Metric2: 0 
+                Validation State: unverified 
+                Task: BGP_3292.83.88.52.201
+                AS path: 3292 15169 I 
+                Communities: 3292:1100 3292:24401
+                Accepted
+                Localpref: 100
+                Router ID: 83.88.52.201
+

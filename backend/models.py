@@ -23,10 +23,11 @@ class PathQuery(BaseModel):
 
 class DeviceVendor(str, Enum):
     JUNIPER = "juniper"
-    CISCO_XR = "cisco_xr"
-    CISCO_IOS = "cisco_ios"
-    PALO_ALTO = "palo_alto"
-    FORTINET = "fortinet"
+    # Future vendors (Phase 2+, when Jeremy provides access):
+    # CISCO_XR = "cisco_xr"
+    # CISCO_IOS = "cisco_ios"
+    # PALO_ALTO = "palo_alto"
+    # FORTINET = "fortinet"
 
 class DeviceRole(str, Enum):
     PE = "pe"                # Customer-facing provider edge

@@ -115,6 +115,48 @@ class TestATTCityResolution:
         assert resolved >= 10, f"Only resolved {resolved}/16 cities"
 
 
+class TestTDCRouteServer:
+    """Test parser against TDC (AS3292) Junos route server output."""
+
+    def test_parse_tdc_paths(self):
+        output = (FIXTURE_PATH.parent / "tdc-8.8.8.0-24-detail.txt").read_text()
+        paths = JunosRouteParser.parse(output)
+        assert len(paths) == 14
+
+    def test_tdc_as_path(self):
+        output = (FIXTURE_PATH.parent / "tdc-8.8.8.0-24-detail.txt").read_text()
+        paths = JunosRouteParser.parse(output)
+        for p in paths:
+            assert "3292" in p.as_path
+            assert "15169" in p.as_path
+
+    def test_tdc_one_active(self):
+        output = (FIXTURE_PATH.parent / "tdc-8.8.8.0-24-detail.txt").read_text()
+        paths = JunosRouteParser.parse(output)
+        active = [p for p in paths if p.active]
+        assert len(active) == 1
+
+
+class TestCloudflarePrefix:
+    """Test parser against AT&T output for Cloudflare 1.1.1.0/24."""
+
+    def test_parse_cloudflare(self):
+        output = (FIXTURE_PATH.parent / "att-1.1.1.0-24-detail.txt").read_text()
+        paths = JunosRouteParser.parse(output)
+        assert len(paths) == 16
+
+    def test_cloudflare_as13335(self):
+        output = (FIXTURE_PATH.parent / "att-1.1.1.0-24-detail.txt").read_text()
+        paths = JunosRouteParser.parse(output)
+        for p in paths:
+            assert "13335" in p.as_path
+
+    def test_cloudflare_prefix(self):
+        output = (FIXTURE_PATH.parent / "att-1.1.1.0-24-detail.txt").read_text()
+        paths = JunosRouteParser.parse(output)
+        assert all(p.prefix == "1.1.1.0/24" for p in paths)
+
+
 class TestParserEdgeCases:
 
     def test_empty_input(self):

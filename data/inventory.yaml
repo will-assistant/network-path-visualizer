@@ -73,7 +73,7 @@ routers:
   # Firewalls - Domain boundaries
   fw-east-01:
     mgmt_ip: "10.0.3.1"
-    vendor: palo_alto
+    vendor: juniper
     role: firewall
     domain: backbone
     interfaces:
@@ -92,7 +92,7 @@ routers:
 
   fw-west-01:
     mgmt_ip: "10.0.3.2"
-    vendor: palo_alto
+    vendor: juniper
     role: firewall
     domain: backbone
     interfaces:
@@ -111,7 +111,7 @@ routers:
 
   fw-edge-01:
     mgmt_ip: "10.0.3.3"
-    vendor: fortinet
+    vendor: juniper
     role: firewall
     domain: backbone
     interfaces:
@@ -217,7 +217,7 @@ routers:
   # Internet Edge
   edge-01:
     mgmt_ip: "10.0.6.1"
-    vendor: cisco_xr
+    vendor: juniper
     role: edge
     domain: inet-edge
     interfaces:
@@ -232,7 +232,7 @@ routers:
 
   edge-02:
     mgmt_ip: "10.0.6.2"
-    vendor: cisco_xr
+    vendor: juniper
     role: edge
     domain: inet-edge
     interfaces:
