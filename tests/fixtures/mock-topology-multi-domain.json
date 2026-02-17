@@ -1,0 +1,4 @@
+{
+  "domains": ["dc", "agg", "edge"],
+  "path": ["pe-1", "fw-1", "agg-1", "fw-2", "edge-1"]
+}

@@ -137,6 +137,41 @@ class NATRule(BaseModel):
 
 # --- Path Result Models ---
 
+
+class LabelOp(BaseModel):
+    action: str
+    label: int
+    lsp_name: Optional[str] = None
+
+
+class DomainCrossing(BaseModel):
+    firewall: str
+    from_domain: str
+    to_domain: str
+    route_type: str
+
+
+class ECMPBranch(BaseModel):
+    parent_hop: str
+    branch_index: int
+    next_hops: list[str] = []
+    paths: list[str] = []
+
+
+class AsymmetryResult(BaseModel):
+    forward_path: "PathResult"
+    reverse_path: "PathResult"
+    symmetric: bool
+    divergence_points: list[int] = []
+
+
+class FailureSimResult(BaseModel):
+    original: "PathResult"
+    failover: "PathResult"
+    failed_node: str
+    impact_summary: str
+
+
 class PathHop(BaseModel):
     """A single hop in the forwarding path."""
     seq: int
@@ -155,6 +190,8 @@ class PathHop(BaseModel):
     tier: Optional[int] = None
     utilization: Optional[float] = None
     communities: list[str] = []  # OID/AID communities at this hop
+    labels: list[LabelOp] = []
+    domain_crossing: Optional[DomainCrossing] = None
 
 class LSPInfo(BaseModel):
     name: str
@@ -199,6 +236,9 @@ class PathResult(BaseModel):
     tiers_traversed: list[str] = []   # e.g. ['dcce', 'dcpe', 'spe', 't2_fw', 'agg', 't1_fw', 'ipe']
     vrf_transitions: list[str] = []   # e.g. ['child:CUST-A → parent:GATEWAY via eBGP@SPE']
     warnings: list[str] = []
+    ecmp_branches: list[ECMPBranch] = []
+    origin_type: Optional[str] = None
+    origin_router: Optional[str] = None
 
 
 # --- Collection/Cached Data Models ---

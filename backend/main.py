@@ -20,12 +20,12 @@ from collectors.junos_collector import JunosCollector
 from data_loader import CollectedDataLoader
 from inventory import Inventory
 from models import CollectionJob
-from path_walker import PathWalker, TraceResult
+from path_walker import PathWalker, TraceResult, AsymmetryResult, FailureSimResult
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Network Path Visualizer", description="Generic next-hop follower", version="3.1.0")
+app = FastAPI(title="Network Path Visualizer", description="Generic next-hop follower", version="3.2.0")
 
 backend_dir = Path(__file__).parent
 project_dir = backend_dir.parent
@@ -88,6 +88,19 @@ class TraceQuery(BaseModel):
     vrf: Optional[str] = None
 
 
+class CompareQuery(BaseModel):
+    source: str
+    destination: str
+    vrf: Optional[str] = None
+
+
+class FailureQuery(BaseModel):
+    source: str
+    destination: str
+    failed_node: str
+    vrf: Optional[str] = None
+
+
 class CollectRequest(BaseModel):
     hosts: list[str] = Field(default_factory=list)
     types: list[str] = Field(default_factory=lambda: ["bgp", "mpls", "isis"])
@@ -108,6 +121,43 @@ async def trace_path(query: TraceQuery):
         logger.error("Trace failed: %s", e)
         raise HTTPException(502, f"Trace failed: {e}")
     return _serialize_result(result)
+
+
+@app.post("/api/trace/reverse")
+async def trace_reverse(query: CompareQuery):
+    try:
+        result = await walker.trace(query.source.strip(), query.destination.strip(), query.vrf or "")
+    except Exception as e:
+        raise HTTPException(502, f"Reverse trace failed: {e}")
+    return _serialize_result(result)
+
+
+@app.post("/api/trace/compare")
+async def compare_paths(query: CompareQuery):
+    try:
+        result = await walker.trace_reverse(query.destination.strip(), query.source.strip(), query.vrf or "")
+    except Exception as e:
+        raise HTTPException(502, f"Compare failed: {e}")
+    return _serialize_asymmetry(result)
+
+
+@app.post("/api/simulate/failure")
+async def simulate_failure(query: FailureQuery):
+    try:
+        result = await walker.simulate_failure(query.source.strip(), query.destination.strip(), query.failed_node.strip(), query.vrf or "")
+    except Exception as e:
+        raise HTTPException(502, f"Failure simulation failed: {e}")
+    return _serialize_failure(result)
+
+
+@app.get("/api/origin/{prefix:path}")
+async def get_origin(prefix: str, start_device: str):
+    if start_device not in inv.devices:
+        raise HTTPException(404, f"Device '{start_device}' not in inventory")
+    try:
+        return await walker.find_origin(prefix.strip(), start_device.strip())
+    except Exception as e:
+        raise HTTPException(502, f"Origin lookup failed: {e}")
 
 
 @app.post("/api/collect")
@@ -179,7 +229,7 @@ async def list_devices():
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "version": "3.1.0", "devices": len(inv.devices)}
+    return {"status": "ok", "version": "3.2.0", "devices": len(inv.devices)}
 
 
 def _serialize_result(result: TraceResult) -> dict:
@@ -187,6 +237,26 @@ def _serialize_result(result: TraceResult) -> dict:
         "prefix": result.prefix,
         "start": result.start,
         "total_time_ms": result.total_time_ms,
+        "origin_type": result.origin_type,
+        "origin_router": result.origin_router,
+        "ecmp_branches": [
+            {
+                "parent_hop": b.parent_hop,
+                "branch_index": b.branch_index,
+                "next_hops": b.next_hops,
+                "selected_paths": b.selected_paths,
+            }
+            for b in result.ecmp_branches
+        ],
+        "domain_crossings": [
+            {
+                "firewall": d.firewall,
+                "from_domain": d.from_domain,
+                "to_domain": d.to_domain,
+                "route_type": d.route_type,
+            }
+            for d in result.domain_crossings
+        ],
         "paths": [
             {
                 "hops": [
@@ -205,6 +275,19 @@ def _serialize_result(result: TraceResult) -> dict:
                         "note": h.note,
                         "query_time_ms": h.query_time_ms,
                         "all_entries": h.all_entries,
+                        "labels": [
+                            {"action": l.action, "label": l.label, "lsp_name": l.lsp_name}
+                            for l in h.labels
+                        ],
+                        "domain_crossing": (
+                            {
+                                "firewall": h.domain_crossing.firewall,
+                                "from_domain": h.domain_crossing.from_domain,
+                                "to_domain": h.domain_crossing.to_domain,
+                                "route_type": h.domain_crossing.route_type,
+                            }
+                            if h.domain_crossing else None
+                        ),
                     }
                     for h in p.hops
                 ],
@@ -213,4 +296,24 @@ def _serialize_result(result: TraceResult) -> dict:
             }
             for p in result.paths
         ],
+    }
+
+
+def _serialize_asymmetry(result: AsymmetryResult) -> dict:
+    return {
+        "forward_path": _serialize_result(result.forward_path),
+        "reverse_path": _serialize_result(result.reverse_path),
+        "symmetric": result.symmetric,
+        "divergence_points": result.divergence_points,
+    }
+
+
+def _serialize_failure(result: FailureSimResult) -> dict:
+    return {
+        "original": _serialize_result(result.original),
+        "failover": _serialize_result(result.failover),
+        "failed_node": result.failed_node,
+        "impact_summary": result.impact_summary,
+        "affected_hops": result.affected_hops,
+        "convergence_notes": result.convergence_notes,
     }

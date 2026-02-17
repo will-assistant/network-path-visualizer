@@ -164,3 +164,17 @@ python3 -m pytest tests/ -v
 ## License
 
 MIT
+
+## Phase 3 Enhancements
+
+- ECMP path branching with configurable per-hop branch cap (default 8)
+- MPLS label operation tracking per hop (push/swap/pop)
+- Domain boundary crossing annotations across firewalls
+- Reverse trace + forward/reverse asymmetry detection
+- Failure simulation with temporary node exclusion
+- Prefix origin detection (`connected`, `static`, `ebgp`)
+- New APIs:
+  - `POST /api/trace/reverse`
+  - `POST /api/trace/compare`
+  - `POST /api/simulate/failure`
+  - `GET /api/origin/{prefix}?start_device=<hostname>`

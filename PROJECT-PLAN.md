@@ -72,13 +72,13 @@ Central YAML inventory controls:
 - [x] **Milestone: Run `ansible-playbook collect-all.yml`, get JSON from all device types**
 
 ### Phase 3: Path Walker
-- [ ] FIB query: read cached Ansible JSON, resolve prefix → next-hop per router
-- [ ] Domain boundary crossing: detect firewall hop, switch to static route lookup
-- [ ] Walk one complete path: PE → FW → AGG → FW → Edge (single domain chain)
-- [ ] ECMP branching: when FIB shows multiple next-hops, fork into parallel paths
-- [ ] MPLS label tracking: record push/swap/pop at each hop from LSP data
-- [ ] Reverse path trace: walk destination → source, compare for asymmetry
-- [ ] Failure simulation: remove a node from graph, re-walk, show reroute
+- [x] FIB query: read cached Ansible JSON, resolve prefix → next-hop per router
+- [x] Domain boundary crossing: detect firewall hop, switch to static route lookup
+- [x] Walk one complete path: PE → FW → AGG → FW → Edge (single domain chain)
+- [x] ECMP branching: when FIB shows multiple next-hops, fork into parallel paths
+- [x] MPLS label tracking: record push/swap/pop at each hop from LSP data
+- [x] Reverse path trace: walk destination → source, compare for asymmetry
+- [x] Failure simulation: remove a node from graph, re-walk, show reroute
 - [ ] **Milestone: Input src + dst, see full multi-domain path with labels and ECMP branches**
 
 ### Phase 4: Production Polish

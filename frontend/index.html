@@ -237,7 +237,7 @@
 
     <div class="controls">
         <div class="control-group">
-            <label>Prefix</label>
+            <label>Destination Prefix</label>
             <input type="text" id="prefix" placeholder="e.g. 8.8.8.0/24" value="8.8.8.0/24">
         </div>
         <div class="control-group">
@@ -251,10 +251,13 @@
             <input type="text" id="vrf" placeholder="default" style="width: 140px;">
         </div>
         <button id="trace-btn" onclick="runTrace()">Trace</button>
+        <button id="reverse-btn" onclick="runCompare()" style="background:#ff7043">Reverse Trace</button>
+        <button id="fail-btn" onclick="runFailure()" style="background:#ffd54f">Simulate Failure</button>
     </div>
 
     <div class="main">
         <div class="path-view" id="path-view">
+            <div id="summary" style="margin-bottom:10px;color:#9ecfff"></div>
             <div class="empty-state">
                 <h2>Enter a prefix and start tracing</h2>
                 <p>Follow the routing table hop by hop</p>
@@ -323,6 +326,11 @@
         }
 
         function renderPaths(result) {
+            const summary = document.getElementById("summary");
+            const hops = (result.paths||[]).reduce((a,p)=>a+(p.hops||[]).length,0);
+            const domains = (result.domain_crossings||[]).length;
+            const labels = (result.paths||[]).flatMap(p=>p.hops||[]).flatMap(h=>h.labels||[]).length;
+            summary.textContent = `Summary: total hops=${hops}, domains crossed=${domains}, label ops=${labels}, origin=${result.origin_type||"unknown"}`;
             const view = document.getElementById('path-view');
 
             if (!result.paths || result.paths.length === 0) {
@@ -442,6 +450,38 @@
         document.getElementById('prefix').addEventListener('keydown', e => {
             if (e.key === 'Enter') runTrace();
         });
+
+        
+
+        async function runCompare() {
+            const destination = document.getElementById('prefix').value.trim();
+            const source = document.getElementById('start-device').value;
+            const resp = await fetch('/api/trace/compare', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({source, destination})});
+            const data = await resp.json();
+            if (!resp.ok) return;
+            renderPaths(data.forward_path);
+            const div = document.createElement('div');
+            div.className = 'error-msg';
+            div.style.background = data.symmetric ? '#153022' : '#301515';
+            div.style.borderColor = data.symmetric ? '#2e7d32' : '#8d2a2a';
+            div.innerHTML = data.symmetric ? 'Forward and reverse paths are symmetric' : `Asymmetry detected at hops: ${data.divergence_points.join(', ')}`;
+            document.getElementById('path-view').prepend(div);
+        }
+
+        async function runFailure() {
+            const destination = document.getElementById('prefix').value.trim();
+            const source = document.getElementById('start-device').value;
+            const failedNode = prompt('Enter failed node hostname');
+            if (!failedNode) return;
+            const resp = await fetch('/api/simulate/failure', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({source, destination, failed_node: failedNode})});
+            const data = await resp.json();
+            if (!resp.ok) return;
+            renderPaths(data.failover);
+            const div = document.createElement('div');
+            div.className = 'error-msg';
+            div.innerHTML = `Failure sim: ${data.impact_summary}`;
+            document.getElementById('path-view').prepend(div);
+        }
 
         // Init
         loadDevices();
