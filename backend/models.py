@@ -10,9 +10,11 @@ The network is modeled as a multi-tier MPLS architecture with:
 - Carrier-supporting-carrier (CSC) VRF for AGG peering
 """
 
-from pydantic import BaseModel
-from typing import Optional
+from datetime import datetime
 from enum import Enum
+from typing import Optional
+
+from pydantic import BaseModel, Field
 
 
 # --- Query Models ---
@@ -197,3 +199,42 @@ class PathResult(BaseModel):
     tiers_traversed: list[str] = []   # e.g. ['dcce', 'dcpe', 'spe', 't2_fw', 'agg', 't1_fw', 'ipe']
     vrf_transitions: list[str] = []   # e.g. ['child:CUST-A → parent:GATEWAY via eBGP@SPE']
     warnings: list[str] = []
+
+
+# --- Collection/Cached Data Models ---
+
+class BGPRoute(BaseModel):
+    prefix: str
+    next_hop: str
+    as_path: list[str] = Field(default_factory=list)
+    communities: list[str] = Field(default_factory=list)
+    local_pref: Optional[int] = None
+    origin: str = "unknown"
+    source_router: str
+    timestamp: datetime
+
+
+class MPLSLsp(BaseModel):
+    name: str
+    from_router: str
+    to_router: str
+    path: list[str] = Field(default_factory=list)
+    labels: list[str] = Field(default_factory=list)
+    state: str
+
+
+class ISISEntry(BaseModel):
+    system_id: str
+    hostname: str
+    neighbors: list[dict] = Field(default_factory=list)
+    ip_reachability: list[str] = Field(default_factory=list)
+
+
+class CollectionJob(BaseModel):
+    id: str
+    status: str
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+    hosts: list[str] = Field(default_factory=list)
+    types: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)

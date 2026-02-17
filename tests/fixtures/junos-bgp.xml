@@ -1,0 +1,20 @@
+<rpc-reply>
+  <route-information>
+    <route-table>
+      <rt>
+        <rt-destination>8.8.8.0/24</rt-destination>
+        <rt-entry>
+          <nh><to>10.0.0.2</to></nh>
+          <as-path>7018 15169 I</as-path>
+          <communities>
+            <community>7018:2500</community>
+            <community>7018:36244</community>
+          </communities>
+          <local-preference>200</local-preference>
+          <peer-id>192.0.2.1</peer-id>
+          <origin>igp</origin>
+        </rt-entry>
+      </rt>
+    </route-table>
+  </route-information>
+</rpc-reply>

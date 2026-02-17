@@ -1,0 +1,16 @@
+<rpc-reply>
+  <mpls-lsp-information>
+    <rsvp-session-data>
+      <session-name>LSP-TO-PE2</session-name>
+      <source-address>10.10.10.1</source-address>
+      <destination-address>10.10.20.1</destination-address>
+      <session-state>Up</session-state>
+      <record-route>
+        <address>10.255.0.1</address>
+        <address>10.255.0.2</address>
+      </record-route>
+      <label>300001</label>
+      <label>300002</label>
+    </rsvp-session-data>
+  </mpls-lsp-information>
+</rpc-reply>

@@ -128,9 +128,29 @@ backend/plugins/             Community decoder plugins
 {"prefix": "8.8.8.0/24", "start_device": "att-rs", "vrf": null}
 ```
 
+**POST /api/collect** — Trigger background collection
+```json
+{"hosts": ["pe-nyc-1"], "types": ["bgp", "mpls", "isis"]}
+```
+
+**GET /api/collect/{job_id}** — Get collection status
+
+**GET /api/collected** — List cached files + stale data warnings
+
 **GET /api/devices** — List all inventory devices (for frontend dropdown)
 
 **GET /api/health** — Health check + device count
+
+## Collection Layer (Phase 2)
+
+Junos collection playbooks are in `ansible/playbooks/` and use NETCONF RPCs only (read-only):
+
+- `collect-junos-bgp.yml` → `data/collected/<host>/bgp-rib.json`
+- `collect-junos-mpls.yml` → `data/collected/<host>/mpls-lsp.json`
+- `collect-junos-isis.yml` → `data/collected/<host>/isis-lsdb.json`
+- `collect-all.yml` orchestrates all with tags (`bgp`, `mpls`, `isis`)
+
+See `docs/COLLECTION.md` for full architecture.
 
 ## Development
 

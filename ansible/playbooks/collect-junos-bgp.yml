@@ -1,0 +1,43 @@
+---
+- name: Collect Junos BGP RIB via NETCONF (read-only)
+  hosts: all
+  gather_facts: false
+  vars:
+    output_root: "{{ playbook_dir }}/../../data/collected"
+    rib_prefix: "{{ prefix | default('') }}"
+    rib_table: "{{ table | default('inet.0') }}"
+    address_families: "{{ afis | default(['inet','inet6']) }}"
+
+  tasks:
+    - name: Ensure host output directory exists
+      ansible.builtin.file:
+        path: "{{ output_root }}/{{ inventory_hostname }}"
+        state: directory
+      delegate_to: localhost
+
+    - name: Collect BGP RIB per address family
+      junipernetworks.junos.junos_rpc:
+        rpc: get-route-information
+        attrs:
+          table: "{{ 'inet6.0' if item == 'inet6' else rib_table }}"
+          extensive: true
+          destination: "{{ rib_prefix if rib_prefix | length > 0 else omit }}"
+      loop: "{{ address_families }}"
+      register: bgp_rpc
+      tags: ["bgp"]
+
+    - name: Save BGP collection JSON
+      ansible.builtin.copy:
+        dest: "{{ output_root }}/{{ inventory_hostname }}/bgp-rib.json"
+        content: |
+          {
+            "hostname": "{{ inventory_hostname }}",
+            "collected_at": "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}",
+            "source": "netconf",
+            "rpc": "get-route-information",
+            "prefix_filter": {{ rib_prefix | to_json }},
+            "address_families": {{ address_families | to_json }},
+            "responses": {{ bgp_rpc.results | map(attribute='xml') | list | to_json }}
+          }
+      delegate_to: localhost
+      tags: ["bgp"]

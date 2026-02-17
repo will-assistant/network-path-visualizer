@@ -1,0 +1,35 @@
+---
+- name: Collect Junos MPLS LSP state via NETCONF (read-only)
+  hosts: all
+  gather_facts: false
+  vars:
+    output_root: "{{ playbook_dir }}/../../data/collected"
+
+  tasks:
+    - name: Ensure host output directory exists
+      ansible.builtin.file:
+        path: "{{ output_root }}/{{ inventory_hostname }}"
+        state: directory
+      delegate_to: localhost
+
+    - name: Collect MPLS LSP information
+      junipernetworks.junos.junos_rpc:
+        rpc: get-mpls-lsp-information
+        attrs:
+          extensive: true
+      register: mpls_rpc
+      tags: ["mpls"]
+
+    - name: Save MPLS collection JSON
+      ansible.builtin.copy:
+        dest: "{{ output_root }}/{{ inventory_hostname }}/mpls-lsp.json"
+        content: |
+          {
+            "hostname": "{{ inventory_hostname }}",
+            "collected_at": "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}",
+            "source": "netconf",
+            "rpc": "get-mpls-lsp-information",
+            "response": {{ mpls_rpc.xml | to_json }}
+          }
+      delegate_to: localhost
+      tags: ["mpls"]

@@ -1,0 +1,35 @@
+---
+- name: Collect Junos ISIS LSDB via NETCONF (read-only)
+  hosts: all
+  gather_facts: false
+  vars:
+    output_root: "{{ playbook_dir }}/../../data/collected"
+
+  tasks:
+    - name: Ensure host output directory exists
+      ansible.builtin.file:
+        path: "{{ output_root }}/{{ inventory_hostname }}"
+        state: directory
+      delegate_to: localhost
+
+    - name: Collect ISIS database information
+      junipernetworks.junos.junos_rpc:
+        rpc: get-isis-database-information
+        attrs:
+          detail: true
+      register: isis_rpc
+      tags: ["isis"]
+
+    - name: Save ISIS collection JSON
+      ansible.builtin.copy:
+        dest: "{{ output_root }}/{{ inventory_hostname }}/isis-lsdb.json"
+        content: |
+          {
+            "hostname": "{{ inventory_hostname }}",
+            "collected_at": "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}",
+            "source": "netconf",
+            "rpc": "get-isis-database-information",
+            "response": {{ isis_rpc.xml | to_json }}
+          }
+      delegate_to: localhost
+      tags: ["isis"]

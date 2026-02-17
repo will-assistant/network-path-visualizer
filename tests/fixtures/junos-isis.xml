@@ -1,0 +1,16 @@
+<rpc-reply>
+  <isis-database-information>
+    <isis-database>
+      <isis-database-entry>
+        <lsp-id>0000.0000.0001.00-00</lsp-id>
+        <isis-neighbor>
+          <is-neighbor-id>0000.0000.0002.00</is-neighbor-id>
+          <metric>10</metric>
+        </isis-neighbor>
+        <isis-prefix>
+          <address-prefix>10.100.0.0/16</address-prefix>
+        </isis-prefix>
+      </isis-database-entry>
+    </isis-database>
+  </isis-database-information>
+</rpc-reply>

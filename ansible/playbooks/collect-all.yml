@@ -1,0 +1,9 @@
+---
+- import_playbook: collect-junos-bgp.yml
+  tags: ["bgp"]
+
+- import_playbook: collect-junos-mpls.yml
+  tags: ["mpls"]
+
+- import_playbook: collect-junos-isis.yml
+  tags: ["isis"]

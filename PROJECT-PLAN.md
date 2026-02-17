@@ -61,15 +61,15 @@ Central YAML inventory controls:
 - [ ] **Milestone: Type 8.8.8.0/24, see 16 AT&T paths with AS-paths and next-hops**
 
 ### Phase 2: Ansible Collection
-- [ ] Junos NETCONF playbook: pull BGP RIB (`get-route-information`)
-- [ ] Junos NETCONF playbook: pull MPLS LSPs (`get-mpls-lsp-information`)
-- [ ] Junos NETCONF playbook: pull ISIS LSDB (`get-isis-database-information`)
-- [ ] Cisco XR NETCONF playbook: pull BGP RIB + MPLS TE + ISIS topology
-- [ ] Panorama API playbook: pull managed firewall static routes + policy routes
-- [ ] Fortinet REST playbook: pull static routes
-- [ ] Collection output: structured JSON per device, saved to `data/collected/`
-- [ ] Collection runner: on-demand via API + scheduled via cron
-- [ ] **Milestone: Run `ansible-playbook collect-all.yml`, get JSON from all device types**
+- [x] Junos NETCONF playbook: pull BGP RIB (`get-route-information`)
+- [x] Junos NETCONF playbook: pull MPLS LSPs (`get-mpls-lsp-information`)
+- [x] Junos NETCONF playbook: pull ISIS LSDB (`get-isis-database-information`)
+- [x] Cisco XR NETCONF playbook: pull BGP RIB + MPLS TE + ISIS topology
+- [x] Panorama API playbook: pull managed firewall static routes + policy routes
+- [x] Fortinet REST playbook: pull static routes
+- [x] Collection output: structured JSON per device, saved to `data/collected/`
+- [x] Collection runner: on-demand via API + scheduled via cron
+- [x] **Milestone: Run `ansible-playbook collect-all.yml`, get JSON from all device types**
 
 ### Phase 3: Path Walker
 - [ ] FIB query: read cached Ansible JSON, resolve prefix → next-hop per router
