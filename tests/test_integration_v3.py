@@ -163,6 +163,29 @@ class TestEndToEndTrace:
         assert "origin" in reasons
         assert "blackhole" in reasons
 
+    def test_hop_includes_all_entries_for_ecmp_visibility(self):
+        """Ensure hop metadata retains all route entries, not only best path."""
+        inv = _make_inv()
+        responses = {
+            "edge-1": [
+                RouteEntry(prefix="8.8.8.0/24", protocol="bgp", next_hop="10.10.1.2", active=True, as_path=["65000", "15169"], local_pref=200, metric=10),
+                RouteEntry(prefix="8.8.8.0/24", protocol="bgp", next_hop="10.10.1.3", active=False, as_path=["64512", "15169"], local_pref=150, metric=20),
+            ],
+        }
+
+        async def collector(dev, prefix, vrf):
+            return responses.get(dev, [])
+
+        walker = PathWalker(inv, collector)
+        result = run(walker.trace("8.8.8.0/24", "edge-1"))
+
+        hop = result.paths[0].hops[0]
+        assert len(hop.all_entries) == 2
+        assert hop.all_entries[0]["next_hop"] == "10.10.1.2"
+        assert hop.all_entries[1]["next_hop"] == "10.10.1.3"
+        assert hop.all_entries[0]["active"] is True
+        assert hop.all_entries[1]["active"] is False
+
     def test_serialization_format(self):
         """Verify the result can be serialized to the expected API format."""
         inv = _make_inv()
