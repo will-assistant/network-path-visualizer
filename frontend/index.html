@@ -195,6 +195,34 @@
             color: #ff9800;
             margin-top: 2px;
         }
+        .hop-entry-count {
+            margin-top: 4px;
+            font-size: 10px;
+            color: #9ecfff;
+        }
+        .entry-list {
+            margin-top: 10px;
+            display: grid;
+            gap: 6px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        .entry-item {
+            border: 1px solid #2a2a35;
+            border-radius: 6px;
+            padding: 8px;
+            background: #141420;
+            cursor: pointer;
+            font-size: 12px;
+            color: #bfcbe0;
+        }
+        .entry-item:hover { border-color: #3a4d6b; }
+        .entry-item.active {
+            border-color: #4fc3f7;
+            background: #102133;
+        }
+        .entry-item .entry-id { color: #fff; font-weight: 600; margin-right: 6px; }
+        .entry-item .entry-meta { color: #8aa2bf; }
 
         .empty-state {
             text-align: center;
@@ -325,12 +353,41 @@
             }
         }
 
+        function getAllEntries(hop) {
+            if (hop && Array.isArray(hop.all_entries) && hop.all_entries.length > 0) {
+                return hop.all_entries.map((entry, idx) => ({
+                    index: idx,
+                    next_hop: entry.next_hop || '',
+                    as_path: Array.isArray(entry.as_path) ? entry.as_path : [],
+                    lp: entry.lp,
+                    metric: entry.metric,
+                    active: Boolean(entry.active),
+                }));
+            }
+            return [{
+                index: 0,
+                next_hop: hop?.next_hop || '',
+                as_path: Array.isArray(hop?.as_path) ? hop.as_path : [],
+                lp: hop?.lp,
+                metric: hop?.metric,
+                active: true,
+            }];
+        }
+
+        function getDefaultEntryIndex(entries) {
+            const activeIdx = entries.findIndex(e => e.active);
+            return activeIdx >= 0 ? activeIdx : 0;
+        }
+
         function renderPaths(result) {
             const summary = document.getElementById("summary");
             const hops = (result.paths||[]).reduce((a,p)=>a+(p.hops||[]).length,0);
             const domains = (result.domain_crossings||[]).length;
             const labels = (result.paths||[]).flatMap(p=>p.hops||[]).flatMap(h=>h.labels||[]).length;
-            summary.textContent = `Summary: total hops=${hops}, domains crossed=${domains}, label ops=${labels}, origin=${result.origin_type||"unknown"}`;
+            const allHopEntries = (result.paths||[]).flatMap(p => p.hops || []).map(h => getAllEntries(h));
+            const routeEntries = allHopEntries.reduce((a, entries) => a + entries.length, 0);
+            const activeEntries = allHopEntries.reduce((a, entries) => a + entries.filter(e => e.active).length, 0);
+            summary.textContent = `Summary: total hops=${hops}, route entries=${routeEntries} (${activeEntries} active), domains crossed=${domains}, label ops=${labels}, origin=${result.origin_type||"unknown"}`;
             const view = document.getElementById('path-view');
 
             if (!result.paths || result.paths.length === 0) {
@@ -378,10 +435,15 @@
                         }
                     }
 
-                    html += `<div class="hop-node" onclick="showDetail(${pi}, ${hi})">
+                    const entries = getAllEntries(hop);
+                    const defaultEntryIdx = getDefaultEntryIndex(entries);
+                    const entryCount = entries.length;
+                    const activeCount = entries.filter(e => e.active).length;
+                    html += `<div class="hop-node" onclick="showDetail(${pi}, ${hi}, ${defaultEntryIdx})">
                         <div class="device-name">${hop.device}</div>
                         ${hop.role ? `<div class="hop-role">${hop.role}</div>` : ''}
                         ${hop.protocol ? `<div class="hop-proto">${hop.protocol.toUpperCase()}</div>` : ''}
+                        ${entryCount > 1 ? `<div class="hop-entry-count">${entryCount} route entries (${activeCount} active)</div>` : ''}
                         ${badges}
                         ${hop.note ? `<div class="hop-note">${hop.note}</div>` : ''}
                     </div>`;
@@ -393,10 +455,14 @@
             view.innerHTML = html;
         }
 
-        function showDetail(pathIdx, hopIdx) {
+        function showDetail(pathIdx, hopIdx, entryIdx = null) {
             if (!lastResult) return;
 
             const hop = lastResult.paths[pathIdx].hops[hopIdx];
+            const allEntries = getAllEntries(hop);
+            const resolvedEntryIdx = entryIdx === null ? getDefaultEntryIndex(allEntries) : entryIdx;
+            const selectedEntry = allEntries[Math.max(0, Math.min(resolvedEntryIdx, allEntries.length - 1))];
+
             const panel = document.getElementById('detail-panel');
             const content = document.getElementById('detail-content');
 
@@ -414,12 +480,13 @@
                 ['Device', hop.device],
                 ['Role', hop.role],
                 ['Protocol', hop.protocol],
-                ['Next Hop', hop.next_hop],
+                ['Selected Entry', `${selectedEntry.index + 1} / ${allEntries.length}`],
+                ['Next Hop', selectedEntry.next_hop || hop.next_hop],
                 ['Interface', hop.interface],
-                ['Local Pref', hop.lp],
-                ['Metric', hop.metric],
+                ['Local Pref', selectedEntry.lp ?? hop.lp],
+                ['Metric', selectedEntry.metric ?? hop.metric],
                 ['VRF', hop.vrf],
-                ['AS Path', hop.as_path ? hop.as_path.join(' ') : ''],
+                ['AS Path', (selectedEntry.as_path || hop.as_path || []).join(' ')],
                 ['Communities', hop.communities ? hop.communities.join(', ') : ''],
             ];
 
@@ -427,6 +494,21 @@
                 if (val !== null && val !== undefined && val !== '') {
                     html += `<div class="detail-row"><span class="key">${key}</span><span class="val">${val}</span></div>`;
                 }
+            }
+
+            if (allEntries.length > 1) {
+                html += `<h3 style="margin-top:16px">All Route Entries (${allEntries.length})</h3><div class="entry-list">`;
+                for (const entry of allEntries) {
+                    const asText = entry.as_path.length ? entry.as_path.join(' ') : 'n/a';
+                    const lpText = entry.lp ?? 'n/a';
+                    const metricText = entry.metric ?? 'n/a';
+                    html += `<div class="entry-item ${entry.index === selectedEntry.index ? 'active' : ''}" onclick="showDetail(${pathIdx}, ${hopIdx}, ${entry.index})">
+                        <span class="entry-id">#${entry.index + 1}${entry.active ? ' ★' : ''}</span>
+                        <span class="entry-meta">${entry.next_hop || 'n/a'} · LP ${lpText} · MED ${metricText}</span>
+                        <div class="entry-meta" style="margin-top:3px">AS ${asText}</div>
+                    </div>`;
+                }
+                html += `</div>`;
             }
 
             if (hop.plugin_labels && Object.keys(hop.plugin_labels).length > 0) {
