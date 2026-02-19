@@ -185,6 +185,8 @@ class TestEndToEndTrace:
         assert hop.all_entries[1]["next_hop"] == "10.10.1.3"
         assert hop.all_entries[0]["active"] is True
         assert hop.all_entries[1]["active"] is False
+        assert hop.all_entries[0]["metric"] == 10
+        assert hop.all_entries[1]["metric"] == 20
 
     def test_serialization_format(self):
         """Verify the result can be serialized to the expected API format."""

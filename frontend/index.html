@@ -380,7 +380,10 @@
             const hops = (result.paths||[]).reduce((a,p)=>a+(p.hops||[]).length,0);
             const domains = (result.domain_crossings||[]).length;
             const labels = (result.paths||[]).flatMap(p=>p.hops||[]).flatMap(h=>h.labels||[]).length;
-            summary.textContent = `Summary: total hops=${hops}, domains crossed=${domains}, label ops=${labels}, origin=${result.origin_type||"unknown"}`;
+            const allHopEntries = (result.paths||[]).flatMap(p => p.hops || []).map(h => getAllEntries(h));
+            const routeEntries = allHopEntries.reduce((a, entries) => a + entries.length, 0);
+            const activeEntries = allHopEntries.reduce((a, entries) => a + entries.filter(e => e.active).length, 0);
+            summary.textContent = `Summary: total hops=${hops}, route entries=${routeEntries} (${activeEntries} active), domains crossed=${domains}, label ops=${labels}, origin=${result.origin_type||"unknown"}`;
             const view = document.getElementById('path-view');
 
             if (!result.paths || result.paths.length === 0) {
@@ -428,12 +431,14 @@
                         }
                     }
 
-                    const entryCount = getAllEntries(hop).length;
+                    const entries = getAllEntries(hop);
+                    const entryCount = entries.length;
+                    const activeCount = entries.filter(e => e.active).length;
                     html += `<div class="hop-node" onclick="showDetail(${pi}, ${hi}, 0)">
                         <div class="device-name">${hop.device}</div>
                         ${hop.role ? `<div class="hop-role">${hop.role}</div>` : ''}
                         ${hop.protocol ? `<div class="hop-proto">${hop.protocol.toUpperCase()}</div>` : ''}
-                        ${entryCount > 1 ? `<div class="hop-entry-count">${entryCount} route entries</div>` : ''}
+                        ${entryCount > 1 ? `<div class="hop-entry-count">${entryCount} route entries (${activeCount} active)</div>` : ''}
                         ${badges}
                         ${hop.note ? `<div class="hop-note">${hop.note}</div>` : ''}
                     </div>`;

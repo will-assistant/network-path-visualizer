@@ -273,6 +273,7 @@ class PathWalker:
             "as_path": e.as_path,
             "communities": e.communities,
             "lp": e.local_pref,
+            "metric": e.metric,
             "active": e.active,
             "peer_as": e.peer_as,
             "protocol": e.protocol,
