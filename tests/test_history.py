@@ -12,7 +12,7 @@ import pytest
 import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
-from history import HistoryDB, TraceRecord
+from history import HistoryDB, TraceRecord, MAX_HISTORY_ROWS
 
 
 def make_record(idx: int = 0, query_type: str = "trace", ts: str | None = None) -> TraceRecord:
@@ -128,3 +128,32 @@ def test_save_bad_path_doesnt_raise(tmp_path: Path, caplog: pytest.LogCaptureFix
     monkeypatch.setattr(db, "_connect", bad_connect)
     db.save(make_record(1))
     assert "Failed to save history record" in caplog.text
+
+
+def test_list_returns_empty_on_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    db = HistoryDB(tmp_path / "history.db")
+
+    def bad_connect():
+        raise sqlite3.OperationalError("corrupt")
+
+    monkeypatch.setattr(db, "_connect", bad_connect)
+    assert db.list() == []
+
+
+def test_get_returns_none_on_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    db = HistoryDB(tmp_path / "history.db")
+
+    def bad_connect():
+        raise sqlite3.OperationalError("corrupt")
+
+    monkeypatch.setattr(db, "_connect", bad_connect)
+    assert db.get("any-id") is None
+
+
+def test_max_rows_pruned(tmp_path: Path):
+    db = HistoryDB(tmp_path / "history.db")
+    for i in range(MAX_HISTORY_ROWS + 5):
+        db.save(make_record(i))
+
+    rows = db.list(limit=MAX_HISTORY_ROWS + 10)
+    assert len(rows) <= MAX_HISTORY_ROWS

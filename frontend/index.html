@@ -374,6 +374,16 @@
     <script>
         let lastResult = null;
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         // Load devices into dropdown
         async function loadDevices() {
             try {
@@ -414,7 +424,8 @@
 
                 if (!resp.ok) {
                     const err = await resp.json();
-                    view.innerHTML = `<div class="error-msg">Error: ${err.detail || resp.statusText}</div>`;
+                    const errorMessage = escapeHtml(err.detail || resp.statusText);
+                    view.innerHTML = `<div class="error-msg">Error: ${errorMessage}</div>`;
                     return;
                 }
 
@@ -422,7 +433,7 @@
                 renderPaths(lastResult);
                 loadHistory();
             } catch (e) {
-                view.innerHTML = `<div class="error-msg">Request failed: ${e.message}</div>`;
+                view.innerHTML = `<div class="error-msg">Request failed: ${escapeHtml(e.message)}</div>`;
             } finally {
                 btn.disabled = false;
             }
@@ -632,9 +643,9 @@
                             ${records.slice(0, 50).map((r, idx) => `
                                 <tr>
                                     <td>${new Date(r.timestamp).toLocaleString()}</td>
-                                    <td>${r.query_type || ''}</td>
-                                    <td>${r.source || ''}</td>
-                                    <td>${r.destination || r.prefix || ''}</td>
+                                    <td>${escapeHtml(r.query_type)}</td>
+                                    <td>${escapeHtml(r.source)}</td>
+                                    <td>${escapeHtml(r.destination) || escapeHtml(r.prefix)}</td>
                                     <td>${typeof r.query_time_ms === 'number' ? r.query_time_ms.toFixed(2) : ''}</td>
                                     <td><button class="history-btn" style="padding:4px 8px;background:#4fc3f7;" onclick="replayRecord(window._historyRecords[${idx}])">Replay</button></td>
                                 </tr>
@@ -644,7 +655,7 @@
                 `;
                 window._historyRecords = records;
             } catch (e) {
-                content.innerHTML = `<div class="error-msg">${e.message}</div>`;
+                content.innerHTML = `<div class="error-msg">${escapeHtml(e.message)}</div>`;
             }
         }
 
@@ -748,7 +759,7 @@
             div.className = 'error-msg';
             div.style.background = data.symmetric ? '#153022' : '#301515';
             div.style.borderColor = data.symmetric ? '#2e7d32' : '#8d2a2a';
-            div.innerHTML = data.symmetric ? 'Forward and reverse paths are symmetric' : `Asymmetry detected at hops: ${data.divergence_points.join(', ')}`;
+            div.innerHTML = data.symmetric ? 'Forward and reverse paths are symmetric' : `Asymmetry detected at hops: ${(data.divergence_points || []).map(escapeHtml).join(', ')}`;
             document.getElementById('path-view').prepend(div);
         }
 
@@ -764,7 +775,7 @@
             loadHistory();
             const div = document.createElement('div');
             div.className = 'error-msg';
-            div.innerHTML = `Failure sim: ${data.impact_summary}`;
+            div.innerHTML = `Failure sim: ${escapeHtml(data.impact_summary)}`;
             document.getElementById('path-view').prepend(div);
         }
 

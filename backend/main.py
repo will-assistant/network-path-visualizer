@@ -53,7 +53,33 @@ except Exception as e:
 _collectors: dict[str, JunosCollector] = {}
 _jobs: dict[str, CollectionJob] = {}
 _loader = CollectedDataLoader(collected_dir)
-_history = HistoryDB(project_dir / "data" / "history.db")
+
+
+class _NullHistoryDB:
+    """Fallback when real HistoryDB fails to initialize."""
+
+    def save(self, record) -> None:
+        return None
+
+    def list(self, limit=50, query_type=None) -> list:
+        return []
+
+    def get(self, record_id) -> None:
+        return None
+
+    def delete(self, record_id) -> bool:
+        return False
+
+    def clear(self) -> int:
+        return 0
+
+
+try:
+    _history = HistoryDB(project_dir / "data" / "history.db")
+except Exception as exc:
+    logger.warning("HistoryDB init failed, running without history: %s", exc)
+    _history = _NullHistoryDB()
+
 _graph_engine: Optional[GraphEngine] = None
 
 
