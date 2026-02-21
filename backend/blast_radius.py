@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from itertools import islice
+
+import networkx as nx
 
 from graph_engine import GraphEngine
 
@@ -36,7 +39,6 @@ class BlastRadiusCalculator:
         rerouted_pairs: list[AffectedPair] = []
         skipped_pairs = 0
 
-        pair_seen: set[tuple[str, str]] = set()
         affected_sources: set[str] = set()
         affected_destinations: set[str] = set()
 
@@ -47,11 +49,12 @@ class BlastRadiusCalculator:
                 if dst == failed_node or dst == src:
                     continue
 
-                pair_key = (src, dst)
-                if pair_key in pair_seen:
+                try:
+                    gen = nx.all_simple_paths(self.ge.graph, src, dst, cutoff=15)
+                    all_paths = list(islice(gen, 51))
+                except Exception:
                     continue
 
-                all_paths = self.ge.all_paths(src, dst, max_length=15)
                 if len(all_paths) > 50:
                     skipped_pairs += 1
                     continue
@@ -60,7 +63,6 @@ class BlastRadiusCalculator:
                 if not through_failed:
                     continue
 
-                pair_seen.add(pair_key)
                 affected_sources.add(src)
                 affected_destinations.add(dst)
 

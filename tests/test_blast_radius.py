@@ -44,8 +44,11 @@ def test_blast_no_paths_through_node():
     calc = BlastRadiusCalculator(ge)
     result = calc.calculate("F")
 
-    assert len(result.rerouted_pairs) == 0
-    assert all(p.source == "F" or p.destination == "F" for p in result.isolated_pairs)
+    # F is a leaf node (only incoming edge B→F, no outgoing edges).
+    # No path can transit through F, so blast radius should be empty.
+    assert result.rerouted_pairs == []
+    assert result.isolated_pairs == []
+    assert "F" in result.summary
 
 
 def test_blast_fully_isolated_node():

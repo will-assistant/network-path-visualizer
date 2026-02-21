@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import subprocess
 import threading
@@ -277,7 +278,8 @@ async def blast_radius(query: BlastRadiusQuery):
         raise HTTPException(404, f"Node '{failed_node}' not in inventory")
     try:
         calc = BlastRadiusCalculator(_get_graph_engine())
-        result = calc.calculate(failed_node)
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, calc.calculate, failed_node)
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
