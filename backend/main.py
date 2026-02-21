@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+import networkx as nx
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +23,8 @@ from data_loader import CollectedDataLoader
 from inventory import Inventory
 from models import CollectionJob
 from path_walker import PathWalker, TraceResult, AsymmetryResult, FailureSimResult
+from graph_engine import GraphEngine
+from blast_radius import BlastRadiusCalculator, BlastRadiusResult
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,6 +49,7 @@ except Exception as e:
 _collectors: dict[str, JunosCollector] = {}
 _jobs: dict[str, CollectionJob] = {}
 _loader = CollectedDataLoader(collected_dir)
+_graph_engine: Optional[GraphEngine] = None
 
 
 def _get_collector(device_name: str) -> JunosCollector:
@@ -67,6 +72,35 @@ async def collector_fn(device_name: str, prefix: str, vrf: str) -> list[RouteEnt
         return cached
     collector = _get_collector(device_name)
     return await collector.get_route(prefix, vrf)
+
+
+def _build_graph_engine_from_inventory() -> GraphEngine:
+    ge = GraphEngine()
+    ge.graph = nx.DiGraph()
+
+    for hostname in inv.devices.keys():
+        ge.graph.add_node(hostname)
+
+    ip_to_host: dict[str, str] = {}
+    for hostname, dev in inv.devices.items():
+        for ip in dev.interfaces.values():
+            if ip:
+                ip_to_host[ip] = hostname
+
+    for hostname, dev in inv.devices.items():
+        for ip in dev.interfaces.values():
+            peer = ip_to_host.get(ip)
+            if peer and peer != hostname:
+                ge.graph.add_edge(hostname, peer)
+
+    return ge
+
+
+def _get_graph_engine() -> GraphEngine:
+    global _graph_engine
+    if _graph_engine is None:
+        _graph_engine = _build_graph_engine_from_inventory()
+    return _graph_engine
 
 
 plugins = []
@@ -104,6 +138,10 @@ class FailureQuery(BaseModel):
 class CollectRequest(BaseModel):
     hosts: list[str] = Field(default_factory=list)
     types: list[str] = Field(default_factory=lambda: ["bgp", "mpls", "isis"])
+
+
+class BlastRadiusQuery(BaseModel):
+    failed_node: str
 
 
 @app.get("/")
@@ -227,6 +265,26 @@ async def list_devices():
     return {"devices": [{"hostname": name, "role": dev.role, "site": dev.site, "vendor": dev.vendor} for name, dev in inv.devices.items()]}
 
 
+@app.get("/api/blast-radius/nodes")
+async def blast_radius_nodes():
+    return {"nodes": sorted(inv.devices.keys())}
+
+
+@app.post("/api/blast-radius")
+async def blast_radius(query: BlastRadiusQuery):
+    failed_node = query.failed_node.strip()
+    if failed_node not in inv.devices:
+        raise HTTPException(404, f"Node '{failed_node}' not in inventory")
+    try:
+        calc = BlastRadiusCalculator(_get_graph_engine())
+        result = calc.calculate(failed_node)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(502, f"Blast radius failed: {e}")
+    return _serialize_blast_radius(result)
+
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "version": "3.2.0", "devices": len(inv.devices)}
@@ -316,4 +374,32 @@ def _serialize_failure(result: FailureSimResult) -> dict:
         "impact_summary": result.impact_summary,
         "affected_hops": result.affected_hops,
         "convergence_notes": result.convergence_notes,
+    }
+
+
+def _serialize_blast_radius(result: BlastRadiusResult) -> dict:
+    return {
+        "failed_node": result.failed_node,
+        "isolated_pairs": [
+            {
+                "source": p.source,
+                "destination": p.destination,
+                "original_path": p.original_path,
+                "alternate_path": p.alternate_path,
+                "status": p.status,
+            }
+            for p in result.isolated_pairs
+        ],
+        "rerouted_pairs": [
+            {
+                "source": p.source,
+                "destination": p.destination,
+                "original_path": p.original_path,
+                "alternate_path": p.alternate_path,
+                "status": p.status,
+            }
+            for p in result.rerouted_pairs
+        ],
+        "unaffected_node_count": result.unaffected_node_count,
+        "summary": result.summary,
     }

@@ -255,6 +255,24 @@
             margin: 20px 0;
             font-size: 13px;
         }
+        .blast-panel {
+            padding: 16px 24px;
+            border-bottom: 1px solid #1a1a25;
+            background: #10101a;
+        }
+        .blast-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+        .blast-table th, .blast-table td {
+            border: 1px solid #2d2d3a;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        .blast-table th { color: #9ecfff; }
     </style>
 </head>
 <body>
@@ -281,6 +299,20 @@
         <button id="trace-btn" onclick="runTrace()">Trace</button>
         <button id="reverse-btn" onclick="runCompare()" style="background:#ff7043">Reverse Trace</button>
         <button id="fail-btn" onclick="runFailure()" style="background:#ffd54f">Simulate Failure</button>
+    </div>
+
+    <div class="blast-panel">
+        <h3 style="margin-bottom:10px;color:#ff8a65;">💥 Blast Radius</h3>
+        <div class="controls" style="padding:0;background:transparent;border:0;">
+            <div class="control-group">
+                <label>Failed Node</label>
+                <select id="blast-node">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <button id="blast-calc-btn" onclick="calcBlastRadius()" style="background:#ff8a65;">Calculate Impact</button>
+        </div>
+        <div id="blast-results" style="margin-top:10px;color:#ddd;"></div>
     </div>
 
     <div class="main">
@@ -535,6 +567,65 @@
 
         
 
+        async function loadBlastNodes() {
+            try {
+                const res = await fetch('/api/blast-radius/nodes');
+                const data = await res.json();
+                const sel = document.getElementById('blast-node');
+                sel.innerHTML = '';
+                (data.nodes || []).forEach(n => {
+                    const opt = document.createElement('option');
+                    opt.value = n;
+                    opt.textContent = n;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {
+                console.error('Failed to load blast nodes:', e);
+            }
+        }
+
+        function renderBlastResults(data) {
+            const out = document.getElementById('blast-results');
+            if (!data || data.detail) {
+                out.innerHTML = `<div class="error-msg">${data?.detail || 'Blast radius request failed'}</div>`;
+                return;
+            }
+
+            const isoRows = (data.isolated_pairs || []).map(p =>
+                `<tr><td>${p.source}</td><td>${p.destination}</td><td>${(p.original_path || []).join(' → ')}</td></tr>`
+            ).join('');
+            const rrRows = (data.rerouted_pairs || []).map(p =>
+                `<tr><td>${p.source}</td><td>${p.destination}</td><td>${(p.original_path || []).join(' → ')}</td><td>${(p.alternate_path || []).join(' → ')}</td></tr>`
+            ).join('');
+
+            out.innerHTML = `
+                <div><strong>${data.summary}</strong></div>
+                <div style="margin-top:8px;color:#aaa;">Unaffected node count: ${data.unaffected_node_count}</div>
+                <div style="margin-top:10px;">🔴 Isolated paths (no alternate):</div>
+                <table class="blast-table">
+                    <thead><tr><th>Source</th><th>Destination</th><th>Path Through Failed Node</th></tr></thead>
+                    <tbody>${isoRows || '<tr><td colspan="3">None</td></tr>'}</tbody>
+                </table>
+                <div>🟠 Rerouted paths (alternate found):</div>
+                <table class="blast-table">
+                    <thead><tr><th>Source</th><th>Destination</th><th>Original Path</th><th>Alternate Path</th></tr></thead>
+                    <tbody>${rrRows || '<tr><td colspan="4">None</td></tr>'}</tbody>
+                </table>
+            `;
+        }
+
+        async function calcBlastRadius() {
+            const node = document.getElementById('blast-node').value;
+            if (!node) return;
+            const res = await fetch('/api/blast-radius', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({failed_node: node})
+            });
+            const data = await res.json();
+            renderBlastResults(data);
+        }
+
         async function runCompare() {
             const destination = document.getElementById('prefix').value.trim();
             const source = document.getElementById('start-device').value;
@@ -567,6 +658,7 @@
 
         // Init
         loadDevices();
+        loadBlastNodes();
     </script>
 </body>
 </html>
