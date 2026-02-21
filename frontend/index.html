@@ -273,6 +273,37 @@
             text-align: left;
         }
         .blast-table th { color: #9ecfff; }
+        .history-panel {
+            padding: 16px 24px;
+            border-bottom: 1px solid #1a1a25;
+            background: #10101a;
+        }
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .history-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .history-btn {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .history-table th, .history-table td {
+            border: 1px solid #2d2d3a;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        .history-table th { color: #9ecfff; }
+        .history-table tbody tr:hover { background: #171726; }
     </style>
 </head>
 <body>
@@ -314,6 +345,17 @@
         </div>
         <div id="blast-results" style="margin-top:10px;color:#ddd;"></div>
     </div>
+
+    <details class="history-panel" open>
+        <summary class="history-header" style="list-style:none;cursor:pointer;">
+            <h3 style="color:#4fc3f7;">📜 Recent Traces</h3>
+            <span class="history-actions" onclick="event.stopPropagation();">
+                <button class="history-btn" style="background:#546e7a;color:#fff;" onclick="loadHistory()">↻ Refresh</button>
+                <button class="history-btn" style="background:#b71c1c;color:#fff;" onclick="clearHistory()">Clear All</button>
+            </span>
+        </summary>
+        <div id="history-content" style="margin-top:8px;color:#999;">Loading history...</div>
+    </details>
 
     <div class="main">
         <div class="path-view" id="path-view">
@@ -378,6 +420,7 @@
 
                 lastResult = await resp.json();
                 renderPaths(lastResult);
+                loadHistory();
             } catch (e) {
                 view.innerHTML = `<div class="error-msg">Request failed: ${e.message}</div>`;
             } finally {
@@ -565,7 +608,73 @@
             if (e.key === 'Enter') runTrace();
         });
 
-        
+        async function loadHistory() {
+            const content = document.getElementById('history-content');
+            try {
+                const res = await fetch('/api/history?limit=50');
+                if (!res.ok) throw new Error('Failed to load history');
+                const data = await res.json();
+                const records = data.records || [];
+
+                if (!records.length) {
+                    content.innerHTML = '<div style="padding:8px 0;color:#777;">No traces yet. Run a trace above.</div>';
+                    return;
+                }
+
+                content.innerHTML = `
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th><th>Type</th><th>Source</th><th>Destination/Prefix</th><th>Time (ms)</th><th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${records.slice(0, 50).map((r, idx) => `
+                                <tr>
+                                    <td>${new Date(r.timestamp).toLocaleString()}</td>
+                                    <td>${r.query_type || ''}</td>
+                                    <td>${r.source || ''}</td>
+                                    <td>${r.destination || r.prefix || ''}</td>
+                                    <td>${typeof r.query_time_ms === 'number' ? r.query_time_ms.toFixed(2) : ''}</td>
+                                    <td><button class="history-btn" style="padding:4px 8px;background:#4fc3f7;" onclick="replayRecord(window._historyRecords[${idx}])">Replay</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                window._historyRecords = records;
+            } catch (e) {
+                content.innerHTML = `<div class="error-msg">${e.message}</div>`;
+            }
+        }
+
+        async function clearHistory() {
+            await fetch('/api/history', { method: 'DELETE' });
+            await loadHistory();
+        }
+
+        function replayRecord(record) {
+            if (!record) return;
+            const type = record.query_type;
+            if (record.prefix) document.getElementById('prefix').value = record.prefix;
+            if (record.source) document.getElementById('start-device').value = record.source;
+
+            if (type === 'trace') {
+                runTrace();
+            } else if (type === 'compare') {
+                if (record.destination) document.getElementById('prefix').value = record.destination;
+                runCompare();
+            } else if (type === 'reverse') {
+                if (record.destination) document.getElementById('prefix').value = record.destination;
+                runTrace();
+            } else if (type === 'failure_sim') {
+                if (record.destination) document.getElementById('prefix').value = record.destination;
+                runFailure();
+            } else if (type === 'blast_radius') {
+                if (record.source) document.getElementById('blast-node').value = record.source;
+                calcBlastRadius();
+            }
+        }
 
         async function loadBlastNodes() {
             try {
@@ -624,6 +733,7 @@
             });
             const data = await res.json();
             renderBlastResults(data);
+            if (res.ok) loadHistory();
         }
 
         async function runCompare() {
@@ -633,6 +743,7 @@
             const data = await resp.json();
             if (!resp.ok) return;
             renderPaths(data.forward_path);
+            loadHistory();
             const div = document.createElement('div');
             div.className = 'error-msg';
             div.style.background = data.symmetric ? '#153022' : '#301515';
@@ -650,6 +761,7 @@
             const data = await resp.json();
             if (!resp.ok) return;
             renderPaths(data.failover);
+            loadHistory();
             const div = document.createElement('div');
             div.className = 'error-msg';
             div.innerHTML = `Failure sim: ${data.impact_summary}`;
@@ -659,6 +771,7 @@
         // Init
         loadDevices();
         loadBlastNodes();
+        loadHistory();
     </script>
 </body>
 </html>

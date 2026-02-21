@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import subprocess
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +28,7 @@ from models import CollectionJob
 from path_walker import PathWalker, TraceResult, AsymmetryResult, FailureSimResult
 from graph_engine import GraphEngine
 from blast_radius import BlastRadiusCalculator, BlastRadiusResult
+from history import HistoryDB, TraceRecord
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -50,6 +53,7 @@ except Exception as e:
 _collectors: dict[str, JunosCollector] = {}
 _jobs: dict[str, CollectionJob] = {}
 _loader = CollectedDataLoader(collected_dir)
+_history = HistoryDB(project_dir / "data" / "history.db")
 _graph_engine: Optional[GraphEngine] = None
 
 
@@ -155,38 +159,102 @@ async def trace_path(query: TraceQuery):
     if query.start_device not in inv.devices:
         raise HTTPException(404, f"Device '{query.start_device}' not in inventory")
     try:
+        started = time.time()
         result = await walker.trace(query.prefix.strip(), query.start_device.strip(), query.vrf or "")
+        elapsed_ms = (time.time() - started) * 1000
     except Exception as e:
         logger.error("Trace failed: %s", e)
         raise HTTPException(502, f"Trace failed: {e}")
-    return _serialize_result(result)
+    serialized = _serialize_result(result)
+    try:
+        _history.save(TraceRecord(
+            id=str(uuid.uuid4()),
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            query_type="trace",
+            source=query.start_device,
+            destination=None,
+            prefix=query.prefix,
+            result_json=json.dumps(serialized),
+            query_time_ms=elapsed_ms,
+        ))
+    except Exception as exc:
+        logger.warning("Failed to save trace history: %s", exc)
+    return serialized
 
 
 @app.post("/api/trace/reverse")
 async def trace_reverse(query: CompareQuery):
     try:
+        started = time.time()
         result = await walker.trace(query.source.strip(), query.destination.strip(), query.vrf or "")
+        elapsed_ms = (time.time() - started) * 1000
     except Exception as e:
         raise HTTPException(502, f"Reverse trace failed: {e}")
-    return _serialize_result(result)
+    serialized = _serialize_result(result)
+    try:
+        _history.save(TraceRecord(
+            id=str(uuid.uuid4()),
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            query_type="reverse",
+            source=query.source,
+            destination=query.destination,
+            prefix=None,
+            result_json=json.dumps(serialized),
+            query_time_ms=elapsed_ms,
+        ))
+    except Exception as exc:
+        logger.warning("Failed to save reverse trace history: %s", exc)
+    return serialized
 
 
 @app.post("/api/trace/compare")
 async def compare_paths(query: CompareQuery):
     try:
+        started = time.time()
         result = await walker.trace_reverse(query.destination.strip(), query.source.strip(), query.vrf or "")
+        elapsed_ms = (time.time() - started) * 1000
     except Exception as e:
         raise HTTPException(502, f"Compare failed: {e}")
-    return _serialize_asymmetry(result)
+    serialized = _serialize_asymmetry(result)
+    try:
+        _history.save(TraceRecord(
+            id=str(uuid.uuid4()),
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            query_type="compare",
+            source=query.source,
+            destination=query.destination,
+            prefix=None,
+            result_json=json.dumps(serialized),
+            query_time_ms=elapsed_ms,
+        ))
+    except Exception as exc:
+        logger.warning("Failed to save compare history: %s", exc)
+    return serialized
 
 
 @app.post("/api/simulate/failure")
 async def simulate_failure(query: FailureQuery):
     try:
+        started = time.time()
         result = await walker.simulate_failure(query.source.strip(), query.destination.strip(), query.failed_node.strip(), query.vrf or "")
+        elapsed_ms = (time.time() - started) * 1000
     except Exception as e:
         raise HTTPException(502, f"Failure simulation failed: {e}")
-    return _serialize_failure(result)
+    serialized = _serialize_failure(result)
+    try:
+        _history.save(TraceRecord(
+            id=str(uuid.uuid4()),
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            query_type="failure_sim",
+            source=query.source,
+            destination=query.destination,
+            prefix=None,
+            result_json=json.dumps(serialized),
+            query_time_ms=elapsed_ms,
+        ))
+    except Exception as exc:
+        logger.warning("Failed to save failure simulation history: %s", exc)
+    return serialized
 
 
 @app.get("/api/origin/{prefix:path}")
@@ -279,17 +347,57 @@ async def blast_radius(query: BlastRadiusQuery):
     try:
         calc = BlastRadiusCalculator(_get_graph_engine())
         loop = asyncio.get_event_loop()
+        started = time.time()
         result = await loop.run_in_executor(None, calc.calculate, failed_node)
+        elapsed_ms = (time.time() - started) * 1000
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
         raise HTTPException(502, f"Blast radius failed: {e}")
-    return _serialize_blast_radius(result)
+    serialized = _serialize_blast_radius(result)
+    try:
+        _history.save(TraceRecord(
+            id=str(uuid.uuid4()),
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            query_type="blast_radius",
+            source=query.failed_node,
+            destination=None,
+            prefix=None,
+            result_json=json.dumps(serialized),
+            query_time_ms=elapsed_ms,
+        ))
+    except Exception as exc:
+        logger.warning("Failed to save blast radius history: %s", exc)
+    return serialized
 
 
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "version": "3.2.0", "devices": len(inv.devices)}
+
+
+@app.get("/api/history")
+async def list_history(limit: int = 50, query_type: Optional[str] = None):
+    return {"records": _history.list(limit=limit, query_type=query_type)}
+
+
+@app.get("/api/history/{record_id}")
+async def get_history_record(record_id: str):
+    record = _history.get(record_id)
+    if not record:
+        raise HTTPException(404, "Record not found")
+    return record
+
+
+@app.delete("/api/history/{record_id}", status_code=204)
+async def delete_history_record(record_id: str):
+    if not _history.delete(record_id):
+        raise HTTPException(404, "Record not found")
+
+
+@app.delete("/api/history", status_code=204)
+async def clear_history():
+    _history.clear()
 
 
 def _serialize_result(result: TraceResult) -> dict:

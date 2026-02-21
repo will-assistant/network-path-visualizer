@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .env
 data/collected/
+data/history.db
 ansible/inventories/production.yml
 venv/
 .venv/
